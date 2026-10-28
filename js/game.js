@@ -862,13 +862,50 @@
         // 盛ったESを深掘りされるときは、面接官がじっと見てくる
         if (q.deep && a.mori) { setFace(type, 'angry'); const sx = $('iv-sfx'); sx.textContent = 'じーっ…'; sx.className = 'iv-sfx angry'; void sx.offsetWidth; sx.classList.add('go'); KV.sound.play('tick'); }
         let opts = KV.shuffle(q.a.map((x, k) => k));
-        // メンタルが低いと、答えが1つ思い浮かばない
-        const blank = S.mental < 40 && !q.narr ? opts.find((k) => q.a[k][1] !== 'bad') : -1;
-        $('iv-ch').innerHTML = opts.map((k, n) => k === blank
-          ? '<button type="button" class="ans blank" disabled>(頭が真っ白で、言葉が出てこない……)</button>'
+        // メンタルが低いと、答えが思い浮かばない(40未満で1つ、20未満で2つ)。連打すれば思い出せる
+        const nBlank = q.narr ? 0 : S.mental < 20 ? 2 : S.mental < 40 ? 1 : 0;
+        const blanks = opts.filter((k) => q.a[k][1] !== 'bad').slice(0, nBlank);
+        $('iv-ch').innerHTML = opts.map((k, n) => blanks.includes(k)
+          ? `<button type="button" class="ans blank" data-k="${k}" style="--d:${n * 0.08}s"><span class="bl-t">${esc(q.a[k][0])}</span><small class="bl-h">頭が真っ白…… 連打して思い出す！</small><i class="bl-bar"></i></button>`
           : `<button type="button" class="ans" data-k="${k}" style="--d:${n * 0.08}s">${esc(q.a[k][0])}</button>`).join('');
+        // 思い出す: 押すたびに文字がはっきりする。面接官が待てなくなる前に、規定の回数を押しきる
+        const recall = (b) => {
+          if (!b.dataset.st) {
+            const need = S.mental < 20 ? 9 : 7, ms = 2200;
+            Object.assign(b.dataset, { st: 'go', n: 0, need });
+            b.classList.add('recall');
+            b.querySelector('.bl-bar').style.animation = `gd-bar ${ms}ms linear forwards`;
+            setLog('連打して 思い出せ！');
+            b.recallT = setTimeout(() => {
+              if (b.dataset.st !== 'go' || b.disabled) return;
+              b.dataset.st = 'fail'; b.disabled = true;
+              b.classList.remove('recall'); b.classList.add('fail');
+              b.querySelector('.bl-h').textContent = '……(沈黙が流れた)';
+              meter = clamp(meter - 5, 0, 100); setMeter(meter);
+              setFace(type, 'angry'); KV.sound.play('deny'); fx.shake();
+              setLog('沈黙…… 面接官は 待ちくたびれた', 'bad');
+            }, ms);
+          }
+          const n = +b.dataset.n + 1, need = +b.dataset.need;
+          b.dataset.n = n;
+          b.style.setProperty('--clear', Math.min(1, n / need));
+          KV.sound.play('tick');
+          b.classList.remove('mash'); void b.offsetWidth; b.classList.add('mash');
+          if (n >= need) {
+            clearTimeout(b.recallT);
+            b.dataset.st = 'lock';
+            b.classList.remove('recall', 'blank'); b.classList.add('got');
+            b.querySelector('.bl-h').textContent = '思い出した！';
+            b.querySelector('.bl-bar').remove();
+            KV.sound.play('ok'); fx.sfx('思い出した！', 'pass');
+            setLog('思い出した！ この答えも 選べる', 'good');
+            // 連打の勢いで、そのまま選んでしまわないように少し待つ
+            setTimeout(() => { delete b.dataset.st; }, 500);
+          }
+        };
         $('iv-ch').onclick = (e) => {
-          const b = e.target.closest('.ans'); if (!b || b.disabled) return;
+          const b = e.target.closest('.ans'); if (!b || b.disabled || b.dataset.st === 'lock') return;
+          if (b.classList.contains('blank')) return recall(b);
           $('iv-ch').querySelectorAll('.ans').forEach((x) => { x.disabled = true; if (x !== b) x.classList.add('dim'); });
           b.classList.add('chosen');
           const trait = q.a[+b.dataset.k][1];
