@@ -1,0 +1,255 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>内定ください</title>
+  <meta name="description" content="本物の求人倍率で就活する。3月から9月まで、エントリーして、Webテストを解いて、クセの強い面接官を攻略しろ。合否はメールを開けるまで分からない。">
+  <meta name="theme-color" content="#ffd84a">
+  <!-- リンクカード(X・LINEなど) -->
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="内定ください ― 就活シミュレーター">
+  <meta property="og:description" content="倍率は本物の統計。圧迫面接、NG質問、同期の内定報告。あなたはゼミ7人中、何位？">
+  <meta property="og:url" content="https://ryuseisakata.github.io/naitei-kudasai/">
+  <meta property="og:image" content="https://ryuseisakata.github.io/naitei-kudasai/og.png">
+  <meta name="twitter:card" content="summary_large_image">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%23e8352e'/%3E%3Ctext x='32' y='47' font-size='42' text-anchor='middle' fill='%23fff' font-family='sans-serif' font-weight='900'%3E%E5%86%85%3C/text%3E%3C/svg%3E">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Dela+Gothic+One&family=M+PLUS+1p:wght@500;800&family=Yomogi&display=swap">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body class="intro">
+  <div class="app" id="app">
+
+    <header class="top">
+      <b class="mini-logo">内定ください</b>
+      <div class="cal" id="cal"><small>就活</small><b id="cal-m">3</b>月</div>
+      <div class="mental" id="mental" title="お祈りが続くと減る。少ないと面接で頭が真っ白になる">
+        <span class="me-mini" id="me-mini"></span>
+        <span>メンタル</span><span class="mbar"><u id="m-trail"></u><i id="m-bar"></i></span><b id="m-val"></b>
+      </div>
+    </header>
+
+    <div class="wrap">
+      <aside class="side panel">
+        <h3 class="side-h">持ち駒 <small id="koma-n"></small></h3>
+        <ul class="koma" id="koma"></ul>
+        <p class="side-empty" id="koma-empty">まだエントリーしていません</p>
+        <h3 class="side-h">全国の内定率 <small id="nat-when"></small></h3>
+        <div class="nat"><span class="nat-bar"><i id="nat-bar"></i></span><b id="nat-v"></b></div>
+        <p class="nat-grp" id="nat-grp"></p>
+        <p class="nat-you" id="nat-you"></p>
+        <h3 class="side-h">ゼミのトーク</h3>
+        <div class="peers" id="peers"></div>
+        <ul class="line" id="line"></ul>
+      </aside>
+
+      <main class="main">
+        <!-- タイトル -->
+        <section class="scene title" id="s-title">
+          <div class="burst" aria-hidden="true"></div>
+          <p class="t-kicker">倍率は、本物の統計。</p>
+          <h1 class="logo"><span>就活シミュレーター</span><b>内定ください</b></h1>
+          <div class="lineup" id="lineup" aria-hidden="true"></div>
+          <p class="lead">3月から9月まで。エントリーして、Webテストを解いて、クセの強い面接官を攻略しろ。<br>合否は、メールを開けるまで分からない。</p>
+          <div class="t-start" id="t-start">
+            <button type="button" class="btn red big" data-sex="m"><span class="t-face" data-t="me-m"></span>男子で就活する</button>
+            <button type="button" class="btn red big" data-sex="f"><span class="t-face" data-t="me-f"></span>女子で就活する</button>
+          </div>
+          <p class="fine">入力はこの端末の中だけで計算し、どこにも送りません。会社と人物は架空です。</p>
+        </section>
+
+        <!-- 月のはじめ: メール → エントリー → 今月の予定 -->
+        <section class="scene" id="s-month" hidden>
+          <div class="panel step-mail" id="p-mail">
+            <h2 class="h2" id="mail-h"></h2>
+            <p class="lost" id="lost" hidden></p>
+            <p class="note" id="mail-note">封筒をクリックして開けてください。金色に光っている封筒は……？</p>
+            <div class="desk" id="desk"></div>
+            <p class="silent" id="silent" hidden></p>
+          </div>
+          <div class="panel step-board" id="p-board" hidden>
+            <h2 class="h2">今月エントリーできる会社</h2>
+            <ul class="board-note">
+              <li>求人倍率は本物です(2026年卒・会社の規模別)。</li>
+              <li>1倍より低いと、求人より学生のほうが多い。</li>
+              <li>持ち駒は同時に<b id="max-active"></b>社まで。</li>
+            </ul>
+            <div class="board" id="board"></div>
+          </div>
+          <div class="panel step-plan" id="p-plan" hidden>
+            <h2 class="h2">今月の予定</h2>
+            <ul class="plan" id="plan"></ul>
+          </div>
+          <div class="month-go">
+            <button type="button" class="btn red big" id="month-next"></button>
+          </div>
+        </section>
+
+        <!-- Webテスト -->
+        <section class="scene panel" id="s-web" hidden>
+          <p class="tag-line">Webテスト <b id="w-no"></b></p>
+          <div class="timer"><i id="w-bar"></i></div>
+          <h2 class="quiz-q" id="w-q"></h2>
+          <div class="choices" id="w-ch"></div>
+        </section>
+
+        <!-- 面接 -->
+        <section class="scene interview" id="s-iv" hidden>
+          <div class="iv-stage panel">
+            <div class="iv-who"><b id="iv-co"></b><span id="iv-boss"></span></div>
+            <div class="iv-face" id="iv-face"></div>
+            <div class="iv-sfx" id="iv-sfx"></div>
+            <div class="meter"><span>評価</span><span class="mt"><i id="iv-meter"></i><em></em></span></div>
+            <p class="iv-log" id="iv-log"></p>
+          </div>
+          <div class="iv-talk">
+            <p class="bubble" id="iv-q"></p>
+            <div class="answers" id="iv-ch"></div>
+          </div>
+        </section>
+
+        <!-- グループディスカッション -->
+        <section class="scene gd" id="s-gd" hidden>
+          <div class="gd-top panel">
+            <span class="gd-boss" id="gd-boss"></span>
+            <div class="gd-head">
+              <p class="tag-line">グループディスカッション <b id="gd-co"></b></p>
+              <p class="gd-theme" id="gd-theme"></p>
+              <div class="timer"><i id="gd-time"></i></div>
+            </div>
+          </div>
+          <div class="gd-table panel" id="gd-table"></div>
+          <div class="gd-bottom">
+            <div class="meter"><span>評価</span><span class="mt"><i id="gd-air"></i><em></em></span></div>
+            <p class="iv-log" id="gd-log"></p>
+            <div class="gd-act">
+              <button type="button" class="btn red big" id="gd-say">発言する</button>
+              <button type="button" class="btn big gd-fix" id="gd-fix" hidden>話を戻す！</button>
+            </div>
+          </div>
+          <div class="gd-role answers" id="gd-role" hidden></div>
+        </section>
+
+        <!-- 結果 -->
+        <section class="scene" id="s-result" hidden>
+          <div class="res-card panel" id="res-card"></div>
+          <div class="res-act">
+            <a class="btn red big" id="share-x" href="#" target="_blank" rel="noopener">Xに投稿</a>
+            <button type="button" class="btn gold big" id="share-img" disabled>結果を画像で保存</button>
+            <button type="button" class="btn" id="again">もう一度就活する</button>
+          </div>
+          <figure class="res-img" id="res-img" hidden><img id="res-img-i" alt="就活の結果の画像" width="1080" height="1350"><figcaption>スマホは画像を長押しで保存できます。Xやインスタに貼ってください</figcaption></figure>
+          <p class="fine" id="src"></p>
+        </section>
+      </main>
+    </div>
+  </div>
+
+  <!-- メールを開ける -->
+  <div class="mail" id="mail" hidden>
+    <div class="env" id="env"><div class="flap"></div><span>選考結果のご連絡</span><b id="env-from"></b><i>クリックして開封</i></div>
+    <div class="letter" id="letter" hidden></div>
+  </div>
+
+  <!-- エントリーシート -->
+  <div class="es-wrap" id="es" hidden>
+    <form class="es" id="es-form">
+      <p class="es-h">エントリーシート <b id="es-co"></b></p>
+      <div class="es-row"><span class="es-l">氏名</span><span class="es-hand" id="es-name"></span><span class="es-l">学部</span><span class="es-hand" id="es-fac"></span></div>
+      <div class="es-q">
+        <p class="es-l">志望動機</p>
+        <p class="es-hand es-ans" id="es-mot">（下から選んでください）</p>
+        <div class="es-opts" id="es-mot-o"></div>
+      </div>
+      <div class="es-q">
+        <p class="es-l">学生時代に力を入れたこと <small class="es-mori" id="es-mori"></small></p>
+        <p class="es-hand es-ans" id="es-gk">（下から選んでください）</p>
+        <div class="es-opts" id="es-gk-o"></div>
+      </div>
+      <div class="es-q">
+        <p class="es-l">自己PR</p>
+        <p class="es-hand es-ans" id="es-pr">（下から選んでください）</p>
+        <div class="es-opts" id="es-pr-o"></div>
+      </div>
+      <p class="es-hint" id="es-hint"></p>
+      <div class="es-act">
+        <button type="submit" class="btn red" id="es-submit" disabled>提出する</button>
+        <button type="button" class="btn" id="es-copy" hidden>前のESを使い回す</button>
+        <button type="button" class="btn" id="es-cancel">やめる</button>
+      </div>
+    </form>
+  </div>
+
+  <!-- 主人公のリアクション -->
+  <div class="me-pop" id="me-pop" aria-hidden="true"><div class="me-face" id="me-face"></div><p class="me-say" id="me-say"></p><b class="me-dmg" id="me-dmg"></b></div>
+
+  <!-- 面接官があらわれた -->
+  <div class="enc" id="enc" hidden>
+    <div class="enc-band top"><span>WARNING　面接官接近中　WARNING　面接官接近中　WARNING　面接官接近中　WARNING　面接官接近中　</span></div>
+    <div class="enc-me" id="enc-me"></div>
+    <b class="enc-vs">VS</b>
+    <div class="enc-boss" id="enc-boss"></div>
+    <div class="enc-text"><p class="enc-kind" id="enc-kind"></p><p class="enc-t" id="enc-t"></p></div>
+    <div class="enc-band bot"><span>WARNING　面接官接近中　WARNING　面接官接近中　WARNING　面接官接近中　WARNING　面接官接近中　</span></div>
+  </div>
+
+  <!-- 内定承諾書 -->
+  <div class="offer" id="offer" hidden>
+    <div class="od">
+      <p class="od-h">内定承諾書</p>
+      <p class="od-to" id="od-to"></p>
+      <p class="od-body">私は、貴社からの内定を承諾し、来年4月1日に入社することを誓約いたします。</p>
+      <div class="od-spec" id="od-spec"></div>
+      <p class="od-sign"><i>氏名</i><span class="od-name" id="od-name"></span><span class="od-han" id="od-han"></span></p>
+      <p class="od-warn" id="od-warn"></p>
+      <div class="od-act" id="od-act"></div>
+    </div>
+    <p class="od-big" aria-hidden="true">内定承諾</p>
+  </div>
+
+  <!-- 同期の内定報告(メンタルに刺さるとき) -->
+  <div class="news" id="news" hidden>
+    <div class="news-band top"><span>速報　ゼミ同期 内定　速報　ゼミ同期 内定　速報　ゼミ同期 内定　速報　ゼミ同期 内定　</span></div>
+    <div class="news-peer" id="news-peer"></div>
+    <div class="news-body">
+      <p class="news-talk" id="news-talk"></p>
+      <p class="news-t" id="news-t"></p>
+      <p class="news-co" id="news-co"></p>
+      <p class="news-stab" id="news-stab" hidden>あなたが<br>落ちた会社</p>
+    </div>
+    <div class="news-me" id="news-me"><b class="news-dmg" id="news-dmg"></b><span class="news-say" id="news-say"></span></div>
+    <p class="news-sum" id="news-sum"></p>
+    <div class="news-band bot"><span>速報　ゼミ同期 内定　速報　ゼミ同期 内定　速報　ゼミ同期 内定　速報　ゼミ同期 内定　</span></div>
+  </div>
+
+  <!-- 撮影モード(#demo) -->
+  <div class="demo" id="demo" hidden>
+    <div class="demo-box">
+      <p class="demo-h">撮影モード</p>
+      <p class="demo-note">見せ場を自動で再生します。先に画面録画を始めてから、場面を選んでください。</p>
+      <div class="demo-sex" id="demo-sex"><button type="button" class="btn sm" data-s="f">女子</button><button type="button" class="btn sm" data-s="m">男子</button></div>
+      <div class="answers demo-list" id="demo-list"></div>
+    </div>
+  </div>
+  <button type="button" class="btn sm demo-back" id="demo-back" hidden>撮影メニュー</button>
+
+  <!-- スマホの通知(ゼミのトーク) -->
+  <div class="toast" id="toast" aria-live="polite"></div>
+
+  <!-- 月が変わる -->
+  <div class="monthflip" id="monthflip" hidden><b id="mf-m"></b><span id="mf-sub"></span></div>
+
+  <button class="mute" id="mute" type="button" aria-pressed="true">音</button>
+  <div class="sfx" id="sfx" aria-hidden="true"></div>
+  <div class="flash" id="flash" aria-hidden="true"></div>
+  <div class="confetti" id="confetti" aria-hidden="true"></div>
+
+  <script src="js/data.js"></script>
+  <script src="js/sound.js"></script>
+  <script src="js/chara.js"></script>
+  <script src="js/card.js"></script>
+  <script src="js/game.js"></script>
+</body>
+</html>
