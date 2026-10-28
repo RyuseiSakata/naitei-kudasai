@@ -89,7 +89,8 @@
     ctx.textAlign = 'center';
     ctx.font = `800 46px ${BODY}`; ctx.fillStyle = tok('--c-ink');
     ctx.fillText(`ゼミ${d.of}人中`, 720, 430);
-    bigText(ctx, `${d.rank}位`, 720, 610, 200, d.rank <= 3 ? tok('--c-red') : tok('--c-paper'), 460);
+    bigText(ctx, `${d.rank}位`, 720, 600, 190, d.rank <= 3 ? tok('--c-red') : tok('--c-paper'), 460);
+    if (d.score) { ctx.font = `800 40px ${BODY}`; ctx.fillStyle = tok('--c-ink'); ctx.fillText(d.score, 720, 672); }
     ctx.textAlign = 'left';
 
     // 数字4つ

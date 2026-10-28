@@ -1462,6 +1462,21 @@
   }
 
   // ===== 結果 =====
+  // 就活スコア(100点満点)。ルールは KV.SCORE_RULES
+  function jobScore(co, m) {
+    if (!co) return { size: 0, terms: 0, time: 0, sum: 0 };
+    const p = KV.pay(co), t = KV.TERMS[co.id];
+    const size = KV.SCORE_SIZE[co.size];
+    const terms = Math.round(clamp((p.hourly - 1200) / 800, 0, 1) * 15 + clamp((45 - t.quit) / 33, 0, 1) * 10);
+    const time = Math.max(0, 15 - (m - 3) * 2);
+    return { size, terms, time, sum: size + terms + time };
+  }
+  function scoreOf(co, m, n, mental, minus) {
+    const j = jobScore(co, m);
+    const count = n ? Math.min(10, 4 + (n - 1) * 3) : 0;
+    const ment = Math.floor(clamp(mental, 0, 100) / 10);
+    return { ...j, count, ment, minus, total: Math.max(0, j.sum + count + ment - minus) };
+  }
   
   function result() {
     const offers = S.apps.filter((a) => a.state === 'naitei');
@@ -1469,13 +1484,18 @@
     const silents = S.apps.filter((a) => a.silent).length;
     // 途中で就活を終えても、同期は10月まで就活を続ける
     for (let m = S.month + 1; m <= 10; m++) S.rivals.filter((r) => !r.co && r.u < Math.min(0.97, (grpRate(m, r.sex) / 100) * r.k)).forEach((r) => { r.co = KV.pick(KV.COMPANIES.filter((c) => c.open[0] <= 9 && (r.k >= 1.1 ? c.size !== 's' : c.size !== 'xl'))); r.month = m; });
-    const best = S.accepted || offers.slice().sort((x, y) => y.co.salary - x.co.salary)[0];
-    // ゼミ7人の順位: 会社の規模が大きいほど上、同じなら早く決まったほど上。同点なら自分が下
-    const TIER = { xl: 4, l: 3, m: 2, s: 1 };
-    const pt = (co, m) => (co ? TIER[co.size] * 100 - m : -1);
-    const board = [...S.rivals.map((r) => ({ name: r.name, co: r.co, p: pt(r.co, r.month) })), { name: 'あなた', me: true, co: best && best.co, p: pt(best && best.co, best && (best.month || Math.min(S.month, 10))) - 0.5 }]
-      .sort((x, y) => y.p - x.p);
+    const busts = S.apps.filter((a) => a.busted != null).length;
+    const losts = S.apps.filter((a) => a.state === 'lost').length;
+    const when = (a) => a.month || Math.min(S.month, 10);
+    // 承諾した会社、なければ一番点の高い内定で比べる
+    const best = S.accepted || offers.slice().sort((x, y) => jobScore(y.co, when(y)).sum - jobScore(x.co, when(x)).sum)[0];
+    const mine = scoreOf(best && best.co, best && when(best), offers.length, S.mental, busts * 3 + losts * 5);
+    // 同期は内定1社。メンタルは、早く決まった人ほど高い
+    const board = [...S.rivals.map((r) => ({ name: r.name, co: r.co, month: r.month, s: scoreOf(r.co, r.month, r.co ? 1 : 0, r.co ? 90 - (r.month - 3) * 6 - r.u * 20 : 25 + r.u * 20, 0) })),
+      { name: 'あなた', me: true, co: best && best.co, month: best && when(best), s: mine }]
+      .sort((x, y) => y.s.total - x.s.total || (x.me ? 1 : y.me ? -1 : 0));
     const rank = board.findIndex((x) => x.me) + 1;
+    const grade = KV.GRADE.find(([g]) => mine.total >= g)[1];
     const title = !offers.length ? '就職浪人' : offers.some((a) => a.co.size === 'xl') && S.pf.univ <= 0.42 ? '学歴フィルター突破' : offers.some((a) => a.co.size === 'xl') ? '倍率の暴力を突破' : offers.length >= 2 ? '内定ホルダー' : best.month >= 9 ? '滑り込み内定' : '内定獲得';
     const fact = !offers.length
       ? `就職を希望した大学生の就職率は${KV.SHUSHOKU.toFixed(1)}%。あなたは、残りの${(100 - KV.SHUSHOKU).toFixed(1)}%に入った。`
@@ -1494,8 +1514,18 @@
       <div class="res-nums"><span><b id="rn-o">0</b>内定</span><span><b id="rn-p">0</b>お祈り</span><span><b id="rn-s">0</b>音信不通</span><span><b>${Math.round(S.mental)}</b>メンタル</span></div>
       ${best ? `<p class="res-best">${esc(best.co.name)}<small>初任給 ${KV.yen(best.co.salary)}</small></p>` : ''}
       <ul class="res-list">${rows || '<li><span>エントリー0社</span></li>'}</ul>
-      <div class="res-rank"><p>ゼミ${board.length}人中 <b class="rk">${rank}位</b></p>
-        <ol>${board.map((x, i) => `<li class="${x.me ? 'me' : ''}" style="--d:${0.6 + (board.length - 1 - i) * 0.28}s"><span>${esc(x.name)}</span><b>${x.co ? esc(x.co.name) : '内定なし'}</b></li>`).join('')}</ol></div>
+      <div class="res-rank"><p>ゼミ${board.length}人中 <b class="rk">${rank}位</b><span class="res-score">就活スコア <b>${mine.total}</b>点 <i class="g-${grade}">${grade}</i></span></p>
+        <ol>${board.map((x, i) => `<li class="${x.me ? 'me' : ''}" style="--d:${0.6 + (board.length - 1 - i) * 0.28}s"><span>${esc(x.name)}</span><b>${x.co ? `${esc(x.co.name)}<small>(${mLabel(x.month)}・社員${KV.SIZE[x.co.size]})</small>` : '内定なし'}</b><em>${x.s.total}点</em></li>`).join('')}</ol>
+        <table class="res-break"><caption>あなたの点数の内訳</caption><tbody>
+          ${[['内定先の会社', mine.size, 40], ['働く条件', mine.terms, 25], ['決まった時期', mine.time, 15], ['内定の数', mine.count, 10], ['メンタル', mine.ment, 10]].map(([h, v, mx]) => `<tr><th>${h}</th><td><span class="rb-bar"><i style="width:${v / mx * 100}%"></i></span></td><td>${v}<small>/${mx}</small></td></tr>`).join('')}
+          ${mine.minus ? `<tr class="minus"><th>減点</th><td>${[busts && `嘘バレ${busts}回`, losts && `内定取り消し${losts}回`].filter(Boolean).join('・')}</td><td>−${mine.minus}</td></tr>` : ''}
+          <tr class="sum"><th>合計</th><td></td><td>${mine.total}<small>/100</small></td></tr>
+        </tbody></table>
+        <details class="res-rule"><summary>順位の決め方</summary>
+          <p>ゼミの全員を「就活スコア」(100点満点)で並べています。同点なら、あなたが下です。同期の内定は1社、メンタルは決まった時期から計算しています。</p>
+          <dl>${KV.SCORE_RULES.map(([h, mx, t]) => `<dt>${h}<small>${mx}</small></dt><dd>${t}</dd>`).join('')}</dl>
+          <p>評価: S 80点以上 / A 65点以上 / B 50点以上 / C 35点以上 / D 35点未満</p>
+        </details></div>
       <p class="res-fact">${fact}<br>全国では、${KV.NAITEI_RATE[10][1]}の時点で${KV.NAITEI_RATE[10][0]}%の学生が内定(内々定)を持っていた(${KV.GROUP_NAME[grpKey()]}は${grpRate(10, S.pf.sex)}%)。</p>
       ${trapList() ? `<p class="res-trap">就活の罠<small>${trapList()}</small></p>` : ''}
       ${S.ng ? `<p class="res-ng">面接で、性別で変わる質問を<b>${S.ng}回</b>された。<small>男性または女性にだけ、結婚・出産後も働くか、残業や転勤ができるかを聞くことは、男女雇用機会均等法に反します。</small></p>` : ''}`;
@@ -1507,8 +1537,7 @@
     KV.sound.play('drum');
     setTimeout(() => { KV.sound.play('stampin'); fx.shake(rank <= 3 ? 'shake' : 'quake'); }, 2700);
     if (offers.length) { fx.flash(); KV.sound.play('win'); fx.confetti(90); fx.sfx(title, 'naitei'); } else { fx.flash('dark'); KV.sound.play('fired'); fx.sfx(title, 'gloom'); }
-    const busts = S.apps.filter((a) => a.busted != null).length;
-    const text = `${S.pf.kindLabel}、${S.pf.facLabel}${S.pf.fac === 'etc' ? '' : '学部'}、偏差値${S.pf.univLabel}、ガクチカ「${S.pf.gakuLabel}」で就活したら「${title}」。ゼミ${board.length}人中${rank}位。内定${offers.length}社・お祈り${prays}通・音信不通${silents}社${busts ? `・嘘バレ${busts}回` : ''}${S.ng ? `・NG質問${S.ng}回` : ''}${best ? `。内定先は${best.co.name}(架空)` : ''}`;
+    const text = `${S.pf.kindLabel}、${S.pf.facLabel}${S.pf.fac === 'etc' ? '' : '学部'}、偏差値${S.pf.univLabel}、ガクチカ「${S.pf.gakuLabel}」で就活したら「${title}」。ゼミ${board.length}人中${rank}位(就活スコア${mine.total}点・${grade})。内定${offers.length}社・お祈り${prays}通・音信不通${silents}社${busts ? `・嘘バレ${busts}回` : ''}${S.ng ? `・NG質問${S.ng}回` : ''}${best ? `。内定先は${best.co.name}(架空)` : ''}`;
     const q = new URLSearchParams({ text, hashtags: '内定ください' });
     if (location.protocol.startsWith('http')) q.set('url', location.href.split('#')[0]);
     $('share-x').href = 'https://x.com/intent/post?' + q.toString();
@@ -1517,7 +1546,7 @@
     const scoutWin = offers.find((a) => a.scout);
     const extras = [scoutWin && `スカウトから逆転内定: ${scoutWin.co.name}`, lastM() > KV.LAST_MONTH && `秋・冬採用まで粘った(${mLabel(Math.min(S.month, lastM()))}まで)`, busts && `ガクチカを盛ってバレた: ${busts}回`, S.ng && `性別で変わるNG質問をされた: ${S.ng}回`, ...trapList().split('<br>').filter(Boolean).map((t) => t.replace(/\(.*\)$/, ''))].filter(Boolean);
     const card = {
-      title, win: offers.length > 0, rank, of: board.length,
+      title, win: offers.length > 0, rank, of: board.length, score: `就活スコア ${mine.total}点・評価${grade}`,
       nums: [[offers.length, '内定'], [prays, 'お祈り'], [silents, '音信不通'], [Math.round(S.mental), 'メンタル']],
       best: best && `${best.co.name}(架空)`,
       extras, face: meType(), expr: offers.length ? 'happy' : 'cry',

@@ -550,6 +550,32 @@ body.intro .wrap { grid-template-columns: minmax(0, 1fr); }
 .res-rank li b { font-weight: 500; }
 .res-rank li.me { color: var(--c-red-deep); }
 .res-rank li.me b { font-weight: 800; }
+/* 就活スコア */
+.res-rank p { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 14px; }
+.res-score { font-size: 0.95rem; }
+.res-score b { font-family: var(--font-display); font-weight: 400; font-size: 1.5rem !important; color: var(--c-ink) !important; }
+.res-score i { display: inline-grid; place-items: center; width: 1.8em; height: 1.8em; margin-left: 4px; border: 3px solid var(--c-ink); border-radius: 50%; font-style: normal; font-family: var(--font-display); background: var(--c-paper); }
+.res-score i.g-S, .res-score i.g-A { background: var(--c-gold); color: var(--c-red-deep); }
+.res-rank ol li { display: grid; grid-template-columns: 3.6em minmax(0, 1fr) auto; align-items: baseline; gap: 0 8px; }
+.res-rank ol li b { min-width: 0; }
+.res-rank li small { display: block; font-size: 0.72rem; font-weight: 500; color: var(--c-ink-2); }
+.res-rank li em { font-style: normal; font-weight: 800; white-space: nowrap; }
+.res-break { width: 100%; border-collapse: collapse; font-size: 0.85rem; font-weight: 800; }
+.res-break caption { text-align: left; font-size: 0.8rem; color: var(--c-ink-2); padding: 4px 0; }
+.res-break th { text-align: left; white-space: nowrap; padding: 3px 8px 3px 0; width: 7em; }
+.res-break td { padding: 3px 0; }
+.res-break td:last-child { text-align: right; white-space: nowrap; width: 4.5em; }
+.res-break small { font-weight: 500; color: var(--c-ink-2); }
+.rb-bar { display: block; height: 10px; border: 2px solid var(--c-ink); border-radius: 6px; background: var(--c-paper); overflow: hidden; }
+.rb-bar i { display: block; height: 100%; background: var(--c-red); }
+.res-break tr.minus { color: var(--c-red-deep); }
+.res-break tr.sum th, .res-break tr.sum td { border-top: 2px solid var(--c-ink); padding-top: 5px; }
+.res-rule summary { cursor: pointer; font-weight: 800; color: var(--c-blue); }
+.res-rule p { margin: 6px 0; font-size: 0.82rem; }
+.res-rule dl { margin: 0; display: grid; gap: 4px; font-size: 0.8rem; }
+.res-rule dt { font-weight: 800; }
+.res-rule dt small { margin-left: 6px; color: var(--c-ink-2); }
+.res-rule dd { margin: 0 0 4px; }
 
 /* 面接官があらわれた(敵の襲来) */
 .enc { position: fixed; inset: 0; z-index: 88; display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr) auto auto; align-items: center; justify-items: center; gap: 8px; padding-block: env(safe-area-inset-top, 0px) env(safe-area-inset-bottom, 0px); overflow: hidden; cursor: pointer;
