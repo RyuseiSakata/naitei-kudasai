@@ -65,7 +65,7 @@
 
   // ===== 確率 =====
   //   会社の求人倍率 = 規模の倍率 × (業種の倍率 ÷ 全体)^0.5 。平均的な学生の内定率に直す(ゲーム内の基準)
-  const ratioOf = (co) => R.size[co.size] * Math.sqrt(R.ind[co.ind] / R.all);
+  const ratioOf = (co) => R.size[co.size] * Math.sqrt(R.ind[KV.IND_RATIO[co.ind] || co.ind] / R.all) * (co.rk || 1);
   const offerP = (co) => clamp(1 - Math.exp(-0.06 * ratioOf(co)), 0.01, 0.35);
   const profileScore = () => 0.5 * S.pf.univ + 0.3 * S.pf.gaku + 0.2 * S.pf.toeic + (S.pf.kind === 'pub' ? 0.03 : 0);
   // 就活の罠に引っかかった回数
@@ -133,6 +133,7 @@
   // ===== 働く条件 =====
   const terms = (co) => KV.TERMS[co.id];
   const man = (v) => `${(v / 1e4).toFixed(1)}万`;
+  const yearOf = (co) => `${Math.round(KV.pay(co).year / 1e4)}万円`;
   function termLine(co) {
     const t = terms(co);
     return `休日${t.hol}日・残業 月${t.ot}時間・転勤${t.move[1] ? 'あり' : 'なし'}`;
@@ -145,11 +146,13 @@
     const rows = [
       ['初任給', list.map((a, i) => [KV.yen(a.co.salary) + (T[i].fixed ? `<small>固定残業代${T[i].fixed}時間分を含む</small>` : ''), a.co.salary])],
       ['基本給', list.map((a, i) => [KV.yen(P[i].base), P[i].base])],
+      ['賞与', T.map((t) => [t.bonus ? `年${t.bonus}か月分` : 'なし(年俸制)', t.bonus])],
+      ['年収の目安<small>残業代・賞与込み</small>', P.map((p) => [`${Math.round(p.year / 1e4)}万円`, p.year])],
       ['年間休日', T.map((t) => [`${t.hol}日`, t.hol])],
       ['残業(月平均)', T.map((t) => [`${t.ot}時間`, -t.ot])],
       ['転勤', T.map((t) => [t.move[0], -t.move[1]])],
       ['3年以内の離職率', T.map((t) => [`${t.quit}%`, -t.quit])],
-      ['時給にすると<small>残業代込み</small>', P.map((p) => [KV.yen(p.hourly), p.hourly])],
+      ['時給にすると<small>残業代・賞与込み</small>', P.map((p) => [KV.yen(p.hourly), p.hourly])],
       ['会社の規模', list.map((a) => [`社員 ${KV.SIZE[a.co.size]}`, null])],
       ['返事の期限', list.map((a) => [a.deadline === S.month ? '今月中' : `${mName(a.deadline)}月中`, null])],
     ];
@@ -184,7 +187,7 @@
     $('koma-empty').hidden = S.apps.length > 0;
     $('koma').innerHTML = S.apps.map((a) => {
       const pips = ST.map((st, i) => {
-        const cls = a.state === 'out' && i === a.failAt ? 'x' : i < a.passed ? 'ok' : (a.pending && a.pending.stage === i) || a.todo === i ? 'now' : '';
+        const cls = a.state === 'out' && i === a.failAt ? 'x' : i < a.passed ? 'ok' : (a.pending && a.pending.stage === i) || a.todo === i || (i === 0 && a.es != null) ? 'now' : '';
         return `<i class="${cls}" title="${st.name}">${st.short}</i>`;
       }).join('');
       const tag = a.state === 'naitei' ? '<b class="k-naitei">内定</b>' : a.state === 'lost' ? '<b class="k-out">取り消し</b>' : a.state === 'out' ? `<b class="k-out">${a.silent ? '音信不通' : 'お祈り'}</b>` : `<b class="k-wait">${a.todo == null ? '結果待ち' : ST[a.todo].id === 'iv1' && a.co.gd ? 'GD' : ST[a.todo].name}</b>`;
@@ -194,7 +197,7 @@
             <button type="button" class="btn red k-ok" data-act="ok" data-id="${a.co.id}">内定承諾書を見る</button>
             ${a.waited ? '' : `<button type="button" class="btn sm" data-act="wait" data-id="${a.co.id}">待ってもらう</button>`}</span>`
         : '';
-      const cond = a.state === 'naitei' ? `<span class="k-cond">初任給${man(a.co.salary)}円${terms(a.co).fixed ? '(固定残業代込み)' : ''}・${termLine(a.co)}</span>` : '';
+      const cond = a.state === 'naitei' ? `<span class="k-cond">年収の目安${yearOf(a.co)}・初任給${man(a.co.salary)}円${terms(a.co).fixed ? '(固定残業代込み)' : ''}・${termLine(a.co)}</span>` : '';
       return `<li class="k-${a.state}${a.fresh ? ' fresh' : ''}"><span class="k-name">${esc(a.co.name)}</span>${tag}<span class="pips">${pips}</span>${cond}${act}</li>`;
     }).join('');
     $('cmp-open').hidden = ended() || S.apps.filter((a) => a.state === 'naitei').length < 2;
@@ -313,8 +316,8 @@
     $('od-to').textContent = `${a.co.name} 御中`;
     const t = terms(a.co), p = KV.pay(a.co);
     $('od-spec').innerHTML = `<span><i>初任給</i><b>${KV.yen(a.co.salary)}</b>${t.fixed ? `<small>固定残業代${t.fixed}時間分を含む(基本給 ${KV.yen(p.base)})</small>` : ''}</span>`
-      + `<span><i>年間休日</i><b>${t.hol}日</b></span><span><i>残業(月平均)</i><b>${t.ot}時間</b></span><span><i>転勤</i><b>${t.move[0]}</b></span>`
-      + `<span><i>3年以内の離職率</i><b>${t.quit}%</b></span><span><i>時給にすると</i><b>${KV.yen(p.hourly)}</b><small>残業代込み</small></span>`
+      + `<span><i>年収の目安</i><b>${Math.round(p.year / 1e4)}万円</b><small>残業代・賞与${t.bonus ? `${t.bonus}か月分` : 'なし'}込み</small></span><span><i>年間休日</i><b>${t.hol}日</b></span><span><i>残業(月平均)</i><b>${t.ot}時間</b></span><span><i>転勤</i><b>${t.move[0]}</b></span>`
+      + `<span><i>3年以内の離職率</i><b>${t.quit}%</b></span><span><i>時給にすると</i><b>${KV.yen(p.hourly)}</b><small>残業代・賞与込み</small></span>`
       + `<span><i>会社の規模</i><b>社員 ${KV.SIZE[a.co.size]}</b></span><span><i>返事の期限</i><b class="dl">${a.deadline === S.month ? '今月中' : `${mName(a.deadline)}月中`}</b></span>`;
     $('od-name').textContent = '';
     $('od-han').textContent = '';
@@ -444,6 +447,14 @@
   function judgeAll() {
     S.mails = []; S.silent = []; S.silentShown = false;
     S.apps.filter((a) => a.state === 'active' && a.pending).forEach((a) => {
+      // 選考が速い会社: 先に書類を判定。通ったら、Webテストの結果を出す
+      if (a.es != null) { const sc = a.pending.score; a.pending = { stage: 0, score: a.es }; a.es = null; judgeOne(a); if (!S.mails.some((m) => m.a === a && m.kind === 'pass')) return; S.mails = S.mails.filter((m) => m.a !== a); a.passed = 1; a.pending = { stage: 1, score: sc }; }
+      judgeOne(a);
+    });
+    finishJudge();
+  }
+  function judgeOne(a) {
+    {
       const { stage, score } = a.pending, st = ST[stage];
       // 同じ文理男女の内定率が全国より高い月は通りやすく、低い月は通りにくい(効き方はゲーム内の基準)
       const tk = Math.sqrt(grpRate(S.month, S.pf.sex) / KV.NAITEI_RATE[Math.min(S.month, 10)][0]);
@@ -453,12 +464,14 @@
       // 学歴フィルター(大企業の書類選考。強さはゲーム内の基準)
       if (st.id === 'es' && a.co.size === 'xl' && !a.co.free && S.pf.univ <= 0.42 && Math.random() < 0.6) { pass = false; a.filter = true; }
       // 使い回したESに他社の名前が残っていたら、書類で必ず落ちて、お祈りメールで指摘される
-      if (st.id === 'es' && a.copyMiss) { pass = false; a.filter = false; S.mails.push({ a, stage, kind: 'pray' }); a.pending = null; return; }
+      if (st.id === 'es' && a.copyMiss) { a.filter = false; S.mails.push({ a, stage, kind: 'pray' }); a.pending = null; return; }
       a.pending = null;
       if (pass) S.mails.push({ a, stage, kind: stage === ST.length - 1 ? 'naitei' : 'pass' });
       else if (st.id === 'es' && (a.filter || Math.random() < 0.35)) S.silent.push({ a, stage });
       else S.mails.push({ a, stage, kind: 'pray' });
-    });
+    }
+  }
+  function finishJudge() {
     S.mails = KV.shuffle(S.mails);
     // 予兆: 封筒が金色に光る(通過なら高め、落ちても少し)
     S.mails.forEach((m) => (m.gold = Math.random() < (m.kind === 'pray' ? 0.08 : 0.5)));
@@ -621,11 +634,12 @@
       return `<button type="button" class="co${full ? ' full' : ''}" data-id="${co.id}" ${act >= KV.MAX_ACTIVE || full ? 'disabled' : ''}>
         ${closing}<span class="co-head">
           <span class="co-name">${esc(co.name)}</span>
-          <span class="co-tags"><i>${KV.IND[co.ind]}</i><i>社員 ${KV.SIZE[co.size]}</i>${co.free ? '<i class="free">学歴不問</i>' : ''}</span>
+          <span class="co-tags"><i>${KV.IND[co.ind]}</i><i>社員 ${KV.SIZE[co.size]}</i>${co.free ? '<i class="free">学歴不問</i>' : ''}${co.fast ? '<i class="fast">選考が速い</i>' : ''}</span>
           <span class="co-face">${KV.chara.face(co.boss)}</span>
         </span>
         <span class="co-spec">
           <span class="co-row"><i>初任給</i><b>${(co.salary / 1e4).toFixed(1)}<small>万円</small></b></span>
+          <span class="co-row"><i>年収の目安</i><b>${Math.round(KV.pay(co).year / 1e4)}<small>万円</small></b></span>
           <span class="co-row co-ratio${r < 1 ? ' hard' : ''}"><i>求人倍率</i><b>${r.toFixed(2)}<small>倍</small></b></span>
           <span class="co-per">${per}</span>
           <span class="co-row"><i>働き方</i><b class="co-terms">${termLine(co)}</b></span>
@@ -690,7 +704,10 @@
   });
   function sendES(score, copyMiss, mori, gk) {
     const co = ES.co;
-    S.apps.push({ co, state: 'active', passed: 0, pending: { stage: 0, score: clamp(score, 0, 1) }, todo: null, fresh: true, copyMiss, mori, gk, busted: null });
+    // 選考が速い会社は、書類と同じ月にWebテストも受ける(書類の結果は、Webテストの結果と一緒に届く)
+    S.apps.push(co.fast
+      ? { co, state: 'active', passed: 0, pending: null, todo: 1, es: clamp(score, 0, 1), fresh: true, copyMiss, mori, gk, busted: null }
+      : { co, state: 'active', passed: 0, pending: { stage: 0, score: clamp(score, 0, 1) }, todo: null, fresh: true, copyMiss, mori, gk, busted: null });
     $('es').hidden = true;
     const card = document.querySelector(`.co[data-id="${co.id}"]`);
     if (card) card.classList.add('sent');
@@ -717,7 +734,7 @@
     const web = S.apps.filter((a) => a.state === 'active' && a.todo === 1);
     if (web.length) S.plan.push({ kind: 'web', apps: web, label: `${web.map((a) => a.co.name).join('・')} のWebテスト` });
     S.apps.filter((a) => a.state === 'active' && (a.todo === 2 || a.todo === 3)).forEach((a) => S.plan.push({ kind: 'iv', apps: [a], gd: ST[a.todo].id === 'iv1' && a.co.gd, label: `${a.co.name} の${ST[a.todo].id === 'iv1' && a.co.gd ? 'グループディスカッション' : ST[a.todo].name}` }));
-    S.apps.filter((a) => a.state === 'active' && a.pending && a.pending.stage === 0).forEach((a) => S.plan.push({ kind: 'es', apps: [a], label: `${a.co.name} の書類選考(結果は来月)`, done: true }));
+    S.apps.filter((a) => a.state === 'active' && ((a.pending && a.pending.stage === 0) || a.es != null)).forEach((a) => S.plan.push({ kind: 'es', apps: [a], label: `${a.co.name} の書類選考(${a.es != null ? 'Webテストと一緒に、' : ''}結果は来月)`, done: true }));
   }
   function renderPlan() {
     const real = S.plan.filter((p) => p.kind !== 'es');
@@ -905,7 +922,7 @@
       const web = ST[stage].id === 'iv1' && Math.random() < KV.WEB_P;
       if (web && Math.random() < 0.5) qs.splice(1 + Math.floor(Math.random() * 2), 0, { ...KV.LAG_Q, lag: true });
       // 性別で変わる質問が、急にはさまる
-      if (Math.random() < KV.NG_P[type]) qs.splice(1 + Math.floor(Math.random() * 3), 0, { q: KV.pick(KV.NG_Q[S.pf.sex === 'f' ? 'f' : 'm']), a: KV.NG_A, ng: true });
+      if (Math.random() < KV.NG_P[type]) qs.splice(1 + Math.floor(Math.random() * 3), 0, (([nq, sw]) => ({ q: nq, a: [[sw, 'swallow'], ...KV.NG_A.slice(1)], ng: true }))(KV.pick(KV.NG_Q[S.pf.sex === 'f' ? 'f' : 'm'])));
       // 最後は逆質問
       qs.push({ q: KV.REV_Q, a: KV.shuffle([...KV.shuffle(KV.REV_GOOD).slice(0, 2), KV.pick(KV.REV_BAD)]), rev: true });
       // 最初の面接は「服装自由」の罠があることも
@@ -961,7 +978,7 @@
         const nBlank = q.narr ? 0 : S.mental < 20 ? 2 : S.mental < 40 ? 1 : 0;
         const blanks = opts.filter((k) => q.a[k][1] !== 'bad').slice(0, nBlank);
         $('iv-ch').innerHTML = opts.map((k, n) => blanks.includes(k)
-          ? `<button type="button" class="ans blank" data-k="${k}" style="--d:${n * 0.08}s"><span class="bl-t">${esc(q.a[k][0])}</span><small class="bl-h">頭が真っ白…… 連打して思い出す！</small><i class="bl-bar"></i></button>`
+          ? `<button type="button" class="ans blank" data-k="${k}" data-full="${esc(q.a[k][0])}" style="--d:${n * 0.08}s"><span class="bl-t"><b></b><span class="fog">${esc(q.a[k][0])}</span></span><span class="bl-h"><b class="bl-tap">タップ</b>頭が真っ白……。${S.mental < 20 ? 9 : 7}回タップすると、思い出せる</span><span class="bl-pips">${'<i></i>'.repeat(S.mental < 20 ? 9 : 7)}</span><i class="bl-bar"></i></button>`
           : `<button type="button" class="ans" data-k="${k}" style="--d:${n * 0.08}s">${esc(q.a[k][0])}</button>`).join('');
         // 思い出す: 押すたびに文字がはっきりする。面接官が待てなくなる前に、規定の回数を押しきる
         const recall = (b) => {
@@ -970,12 +987,12 @@
             Object.assign(b.dataset, { st: 'go', n: 0, need });
             b.classList.add('recall');
             b.querySelector('.bl-bar').style.animation = `gd-bar ${ms}ms linear forwards`;
-            setLog('連打して 思い出せ！');
+            setLog('急いでタップ！ 赤い線が消えるまでに', 'bad');
             b.recallT = setTimeout(() => {
               if (b.dataset.st !== 'go' || b.disabled) return;
               b.dataset.st = 'fail'; b.disabled = true;
               b.classList.remove('recall'); b.classList.add('fail');
-              b.querySelector('.bl-h').textContent = '……(沈黙が流れた)';
+              b.querySelector('.bl-h').textContent = '間に合わなかった……(沈黙が流れた)';
               meter = clamp(meter - 5, 0, 100); setMeter(meter);
               setFace(type, 'angry'); KV.sound.play('deny'); fx.shake();
               setLog('沈黙…… 面接官は 待ちくたびれた', 'bad');
@@ -983,15 +1000,20 @@
           }
           const n = +b.dataset.n + 1, need = +b.dataset.need;
           b.dataset.n = n;
-          b.style.setProperty('--clear', Math.min(1, n / need));
+          // 押すたびに、答えが前から1文字ずつはっきりする
+          const full = b.dataset.full, cut = Math.round(full.length * Math.min(1, n / need));
+          b.querySelector('.bl-t b').textContent = full.slice(0, cut);
+          b.querySelector('.bl-t .fog').textContent = full.slice(cut);
+          b.querySelectorAll('.bl-pips i').forEach((p, j) => p.classList.toggle('on', j < n));
+          if (n < need) b.querySelector('.bl-h').innerHTML = `<b class="bl-tap">タップ</b>あと<em>${need - n}</em>回！`;
           KV.sound.play('tick');
           b.classList.remove('mash'); void b.offsetWidth; b.classList.add('mash');
           if (n >= need) {
             clearTimeout(b.recallT);
             b.dataset.st = 'lock';
             b.classList.remove('recall', 'blank'); b.classList.add('got');
-            b.querySelector('.bl-h').textContent = '思い出した！';
-            b.querySelector('.bl-bar').remove();
+            b.querySelector('.bl-h').textContent = '思い出した！ もう一度押すと、この答えを選ぶ';
+            b.querySelector('.bl-bar').remove(); b.querySelector('.bl-pips').remove();
             KV.sound.play('ok'); fx.sfx('思い出した！', 'pass');
             setLog('思い出した！ この答えも 選べる', 'good');
             // 連打の勢いで、そのまま選んでしまわないように少し待つ
@@ -1472,8 +1494,8 @@
     if (!co) return { size: 0, terms: 0, time: 0, sum: 0 };
     const p = KV.pay(co), t = KV.TERMS[co.id];
     const size = KV.SCORE_SIZE[co.size];
-    const terms = Math.round(clamp((p.hourly - 1200) / 800, 0, 1) * 15 + clamp((45 - t.quit) / 33, 0, 1) * 10);
-    const time = Math.max(0, 15 - Math.max(0, m - 7) * 3);
+    const terms = Math.round(clamp((p.hourly - 1400) / 1400, 0, 1) * 15 + clamp((45 - t.quit) / 33, 0, 1) * 10);
+    const time = Math.max(0, 15 - Math.max(0, m - 6) * 3);
     return { size, terms, time, sum: size + terms + time };
   }
   function scoreOf(co, m, n, mental, minus) {
@@ -1517,7 +1539,7 @@
       <p class="res-k">就活の結果(${mLabel(S.month)}に終了)</p>
       <p class="res-title">${title}</p>
       <div class="res-nums"><span><b id="rn-o">0</b>内定</span><span><b id="rn-p">0</b>お祈り</span><span><b id="rn-s">0</b>音信不通</span><span><b>${Math.round(S.mental)}</b>メンタル</span></div>
-      ${best ? `<p class="res-best">${esc(best.co.name)}<small>初任給 ${KV.yen(best.co.salary)}</small></p>` : ''}
+      ${best ? `<p class="res-best">${esc(best.co.name)}<small>初任給 ${KV.yen(best.co.salary)} / 年収の目安 ${yearOf(best.co)}</small></p>` : ''}
       <ul class="res-list">${rows || '<li><span>エントリー0社</span></li>'}</ul>
       <div class="res-rank"><p>ゼミ${board.length}人中 <b class="rk">${rank}位</b><span class="res-score">就活スコア <b>${mine.total}</b>点 <i class="g-${grade}">${grade}</i></span></p>
         <ol>${board.map((x, i) => `<li class="${x.me ? 'me' : ''}" style="--d:${0.6 + (board.length - 1 - i) * 0.28}s"><span>${esc(x.name)}</span><b>${x.co ? `${esc(x.co.name)}<small>(${mLabel(x.month)}・社員${KV.SIZE[x.co.size]})</small>` : '内定なし'}</b><em>${x.s.total}点</em></li>`).join('')}</ol>
