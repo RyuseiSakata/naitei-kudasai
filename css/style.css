@@ -719,45 +719,111 @@ body.intro .wrap { grid-template-columns: minmax(0, 1fr); }
 .iv-sfx.tell.clock { color: var(--c-red); }
 
 /* グループディスカッション */
-.gd { display: grid; gap: 16px; position: relative; }
+.gd { display: grid; gap: 14px; position: relative; }
 .gd-top { display: grid; grid-template-columns: 84px minmax(0, 1fr); gap: 14px; align-items: center; }
 .gd-boss .chara { width: 100%; display: block; }
 .gd-head { display: grid; gap: 8px; min-width: 0; }
 .gd-theme { margin: 0; font-family: var(--font-display); font-size: clamp(1.2rem, 2.6vw, 1.7rem); line-height: 1.35; word-break: auto-phrase; text-wrap: balance; }
-.gd-table { position: relative; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 10px; align-items: end; padding-top: 90px; background: repeating-linear-gradient(0deg, var(--c-paper) 0 22px, var(--c-paper-2) 22px 24px); }
-.gd-seat { position: relative; display: grid; justify-items: center; gap: 4px; transition: transform 0.2s; }
-.gd-seat.talk { transform: translateY(-8px); }
-.gd-seat.talk .gd-face { filter: drop-shadow(0 0 0 var(--c-ink)) drop-shadow(0 0 10px var(--c-gold)); }
+/* 議論の流れ: 前提 → アイデア → まとめ */
+.gd-phase { list-style: none; margin: 0; padding: 0; display: flex; gap: 6px; }
+.gd-phase li { flex: 1; padding: 3px 6px; text-align: center; border: 2px solid var(--c-ink); border-radius: 4px; background: var(--c-paper-2); color: var(--c-ink-2); font-weight: 800; font-size: 0.8rem; transition: transform 0.2s; }
+.gd-phase li.now { background: var(--c-red); color: var(--c-paper); transform: scale(1.06); }
+.gd-phase li.done { background: var(--c-ink); color: var(--c-paper); }
+.gd-mid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.8fr); gap: 14px; }
+/* ホワイトボード: 出た意見が手書きでたまっていく */
+.gd-board-wrap { display: grid; align-content: start; gap: 8px; background: var(--c-paper); }
+.gd-board-h { margin: 0; font-weight: 800; font-size: 0.78rem; color: var(--c-ink-2); border-bottom: 2px solid var(--c-paper-2); }
+.gd-board { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; font-family: Yomogi, var(--font-body); font-size: 1.05rem; line-height: 1.35; }
+.gd-board li { position: relative; padding-left: 1em; color: var(--c-blue); word-break: auto-phrase; animation: gd-write 0.5s steps(8) both; }
+.gd-board li::before { content: "・"; position: absolute; left: -0.2em; }
+.gd-board li.me { color: var(--c-red-deep); font-weight: 800; }
+.gd-board li.me::after { content: "あなた"; margin-left: 6px; padding: 0 5px; border-radius: 3px; background: var(--c-red); color: var(--c-paper); font-family: var(--font-body); font-size: 0.6rem; vertical-align: 2px; }
+@keyframes gd-write { from { clip-path: inset(0 100% 0 0); } to { clip-path: inset(0 0 0 0); } }
+.gd-board:empty::after { content: "(まだ何も書かれていない)"; color: var(--c-gray); font-size: 0.85rem; }
+/* 席と、今話している人の言葉 */
+.gd-room { position: relative; display: grid; gap: 12px; align-content: start; }
+.gd-table { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px; align-items: end; }
+.gd-seat { display: grid; justify-items: center; gap: 4px; transition: transform 0.2s; }
+.gd-seat.talk { transform: translateY(-6px); }
+.gd-seat.talk .gd-face { filter: drop-shadow(0 0 10px var(--c-gold)); }
 .gd-seat.me .gd-name { background: var(--c-red); color: var(--c-paper); }
-.gd-face { width: 100%; max-width: 120px; }
+.gd-face { width: 100%; max-width: 96px; }
 .gd-face .chara { width: 100%; display: block; }
 .gd-name { padding: 1px 8px; border: 2px solid var(--c-ink); border-radius: 99px; background: var(--c-paper); font-size: 0.72rem; white-space: nowrap; }
-.gd-bub { position: absolute; bottom: 100%; left: 50%; translate: -50% 0; z-index: 2; margin: 0 0 4px; width: max-content; max-width: min(240px, 44vw); padding: 6px 10px; border: 2px solid var(--c-ink); border-radius: 12px; background: var(--c-paper); font-size: 0.8rem; font-weight: 800; word-break: auto-phrase; opacity: 0; }
-.gd-bub.on { opacity: 1; }
-.gd-bub.pop { animation: koma 0.3s var(--ease-pop) both; }
-.gd-bub.crash { background: var(--c-red); color: var(--c-paper); font-size: 0.9rem; }
-.gd-bub.me { background: var(--c-gold); }
-.gd-bub.bad { background: var(--c-night); color: var(--c-paper); }
-.gd-table .iv-dmg { top: 10px; }
+.gd-speech { position: relative; min-height: 5em; padding: 10px 14px 16px; border: var(--line); border-radius: 14px; background: var(--c-paper); overflow: hidden; opacity: 0.35; }
+.gd-speech.on { opacity: 1; }
+.gd-speech.pop { animation: koma 0.3s var(--ease-pop) both; }
+.gd-who { display: inline-block; padding: 0 8px; border-radius: 99px; background: var(--c-ink); color: var(--c-paper); font-size: 0.75rem; }
+.gd-who:empty { display: none; }
+.gd-say-t { margin: 4px 0 0; font-weight: 800; word-break: auto-phrase; }
+.gd-talkbar { position: absolute; left: 0; bottom: 0; width: 100%; height: 6px; background: var(--c-ink-2); transform-origin: left; transform: scaleX(0); }
+@keyframes gd-bar { from { transform: scaleX(1); } to { transform: scaleX(0); } }
+.gd-speech.me { background: var(--c-gold); }
+.gd-speech.crash { background: var(--c-red); color: var(--c-paper); }
+.gd-speech.bad { background: var(--c-night); color: var(--c-paper); }
+.gd-speech.gap { display: grid; place-items: center; background: var(--c-green); }
+.gd-speech.gap .gd-say-t { margin: 0; font-family: var(--font-display); font-weight: 400; font-size: 1.5rem; }
+.gd-speech.gap .gd-talkbar { background: var(--c-ink); }
+.gd-room .iv-dmg { top: 10px; }
+/* 発言ボタン: 「間」のあいだだけ緑に光る */
 .gd-bottom { display: grid; gap: 10px; }
-.gd-act { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; }
-#gd-say { min-width: min(320px, 100%); transition: transform 0.1s, background 0.1s; }
-.gd[data-state="gap"] #gd-say { background: var(--c-green); color: var(--c-ink); transform: scale(1.08); }
-.gd[data-state="gap"] .gd-table { box-shadow: 0 0 0 5px var(--c-green), var(--drop); }
-.gd-fix { background: var(--c-gold); animation: due 0.6s steps(2) infinite; }
+.gd-act { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.gd-move { padding: 14px 8px; font-size: 1rem; transition: transform 0.1s, background 0.1s; }
+.gd[data-state="gap"] .gd-move { background: var(--c-green); transform: scale(1.04); }
+.gd[data-state="talk"] .gd-move, .gd[data-state="mine"] .gd-move { background: var(--c-paper-2); }
+.gd-fix { justify-self: center; min-width: min(320px, 100%); background: var(--c-gold); animation: due 0.6s steps(2) infinite; }
 .gd-role { position: absolute; inset: 0; z-index: 5; align-content: center; padding: 20px max(16px, env(safe-area-inset-left, 0px)); background: var(--c-paper); border: var(--line); border-radius: 6px; }
 .gd-role-h { margin: 0; font-family: var(--font-display); font-size: 1.5rem; text-align: center; }
 .gd-role .ans small { display: block; font-size: 0.78rem; color: var(--c-ink-2); }
+/* 最後: 面接官のメモ */
+.gd-review { position: fixed; inset: 0; z-index: 90; display: grid; place-items: safe center; padding: 20px max(16px, env(safe-area-inset-left, 0px)); background: var(--c-shade); overflow-y: auto; }
+.gd-rv { width: min(100%, 460px); display: grid; gap: 10px; padding: 20px; background: var(--c-paper); border: var(--line); border-radius: 8px; box-shadow: var(--drop); animation: letter-up 0.4s var(--ease-pop) both; }
+.gd-rv-h { margin: 0; text-align: center; font-family: Yomogi, var(--font-body); font-size: 1.4rem; }
+.gd-review ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+.gd-review li { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 4px 8px; border-bottom: 2px dashed var(--c-ink); font-weight: 800; animation: koma 0.3s var(--ease-pop) var(--d) both; }
+.gd-review li small { display: block; font-size: 0.72rem; color: var(--c-ink-2); }
+.gd-review li b { font-family: var(--font-display); font-weight: 400; font-size: 1.8rem; line-height: 1; }
+.gd-review .m3 { color: var(--c-red); } .gd-review .m2 { color: var(--c-ink); } .gd-review .m1 { color: var(--c-ink-2); } .gd-review .m0 { color: var(--c-gray); }
+.gd-rv-v { margin: 0; text-align: center; font-family: var(--font-display); font-size: 1.3rem; }
+.gd-rv-v.good { color: var(--c-red); } .gd-rv-v.bad { color: var(--c-gray); }
 @media (max-width: 640px) {
-  .gd-table { gap: 4px; padding-top: 110px; }
-  .gd-name { font-size: 0.6rem; padding: 1px 4px; }
-  .gd-seat, .gd-seat.talk { position: static; transform: none; }
-  .gd-bub, .gd-seat:first-child .gd-bub, .gd-seat:last-child .gd-bub { top: 12px; bottom: auto; left: 50%; right: auto; translate: -50% 0; max-width: 86%; font-size: 0.78rem; }
-  .gd-name { white-space: normal; text-align: center; line-height: 1.2; }
   .gd-top { grid-template-columns: 56px minmax(0, 1fr); }
+  /* スマホ: 会話 → ボタン → ホワイトボードの順(ボタンをスクロールなしで押せるように)。上の帯も隠す */
+  body[data-scene="s-gd"] .top { display: none; }
+  .gd-top { padding-right: 56px; }
+  .gd-mid { display: contents; }
+  .gd-room { order: 1; }
+  .gd-bottom { order: 2; }
+  .gd-board-wrap { order: 3; }
+  .gd { gap: 10px; }
+  .gd-theme { font-size: 1.05rem; }
+  .gd-face { max-width: 60px; }
+  .gd-speech { min-height: 4.2em; padding: 8px 12px 14px; }
+  .gd-say-t { font-size: 0.9rem; }
+  .gd-board { grid-template-columns: repeat(2, minmax(0, 1fr)); font-size: 0.9rem; }
+  .gd-table { gap: 4px; }
+  .gd-name { font-size: 0.6rem; padding: 1px 4px; white-space: normal; text-align: center; line-height: 1.2; }
+  .gd-move { font-size: 0.82rem; padding: 12px 4px; }
 }
-.gd-seat:first-child .gd-bub { left: 0; translate: 0 0; }
-.gd-seat:last-child .gd-bub { left: auto; right: 0; translate: 0 0; }
+
+/* ===== 準備カード(選考の前) ===== */
+.ready { position: fixed; inset: 0; z-index: 95; display: grid; place-items: safe center; padding: 20px max(16px, env(safe-area-inset-left, 0px)); background: var(--c-shade); overflow-y: auto; }
+.ready.go .rd { animation: letter-up 0.4s var(--ease-pop) both; }
+.rd { width: min(100%, 560px); display: grid; gap: 14px; padding: 22px; background: var(--c-paper); border: var(--line); border-radius: 8px; box-shadow: var(--drop); }
+.rd-k { margin: 0; justify-self: start; padding: 2px 10px; border-radius: 4px; background: var(--c-ink); color: var(--c-paper); font-weight: 800; font-size: 0.85rem; word-break: auto-phrase; }
+.rd-head { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 14px; align-items: center; }
+.rd-face { width: 84px; }
+.rd-face .chara { width: 100%; display: block; }
+.rd-t { margin: 0; font-family: var(--font-display); font-size: clamp(1.6rem, 5vw, 2.2rem); line-height: 1.15; color: var(--c-red); -webkit-text-stroke: 5px var(--c-ink); paint-order: stroke fill; word-break: auto-phrase; }
+.rd-sub { margin: 4px 0 0; font-weight: 800; font-size: 0.9rem; word-break: auto-phrase; }
+.rd-rules details { padding: 8px 12px; border: 2px solid var(--c-ink); border-radius: 6px; background: var(--c-paper-2); }
+.rd-rules summary { font-weight: 800; cursor: pointer; }
+.rd-rules ul { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 8px; }
+.rd-rules li { display: grid; grid-template-columns: 3.2em minmax(0, 1fr); gap: 8px; align-items: start; font-weight: 800; font-size: 0.9rem; }
+.rd-rules li b { text-align: center; border: 2px solid var(--c-ink); border-radius: 4px; background: var(--c-yellow); font-size: 0.8rem; }
+.rd-count { position: fixed; left: 50%; top: 50%; z-index: 96; translate: -50% -50%; white-space: nowrap; pointer-events: none; font-family: var(--font-display); font-weight: 400; font-size: clamp(5rem, 22vw, 11rem); color: var(--c-yellow); -webkit-text-stroke: 14px var(--c-ink); paint-order: stroke fill; }
+.rd-count.go { animation: count 0.6s var(--ease-pop) both; }
+@keyframes count { 0% { transform: scale(2.2); opacity: 0; } 35% { transform: scale(1); opacity: 1; } 80% { opacity: 1; } 100% { transform: scale(0.9); opacity: 0; } }
 
 /* 内定承諾書 */
 .offer { position: fixed; inset: 0; z-index: 93; display: grid; place-items: safe center; padding: 20px max(16px, env(safe-area-inset-left, 0px)); overflow-y: auto;

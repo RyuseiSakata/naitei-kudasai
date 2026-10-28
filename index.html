@@ -119,17 +119,23 @@
             <div class="gd-head">
               <p class="tag-line">グループディスカッション <b id="gd-co"></b></p>
               <p class="gd-theme" id="gd-theme"></p>
+              <ol class="gd-phase" id="gd-phase"></ol>
               <div class="timer"><i id="gd-time"></i></div>
             </div>
           </div>
-          <div class="gd-table panel" id="gd-table"></div>
+          <div class="gd-mid">
+            <div class="gd-board-wrap panel"><p class="gd-board-h">ホワイトボード</p><ul class="gd-board" id="gd-board"></ul></div>
+            <div class="gd-room panel" id="gd-room">
+              <div class="gd-table" id="gd-table"></div>
+              <div class="gd-speech" id="gd-speech"><b class="gd-who" id="gd-who"></b><p class="gd-say-t" id="gd-say-t"></p><i class="gd-talkbar" id="gd-talkbar"></i></div>
+              <div class="gd-review" id="gd-review" hidden></div>
+            </div>
+          </div>
           <div class="gd-bottom">
             <div class="meter"><span>評価</span><span class="mt"><i id="gd-air"></i><em></em></span></div>
             <p class="iv-log" id="gd-log"></p>
-            <div class="gd-act">
-              <button type="button" class="btn red big" id="gd-say">発言する</button>
-              <button type="button" class="btn big gd-fix" id="gd-fix" hidden>話を戻す！</button>
-            </div>
+            <div class="gd-act" id="gd-act"></div>
+            <button type="button" class="btn big gd-fix" id="gd-fix" hidden></button>
           </div>
           <div class="gd-role answers" id="gd-role" hidden></div>
         </section>
@@ -225,6 +231,17 @@
     <p class="news-sum" id="news-sum"></p>
     <div class="news-band bot"><span>速報　ゼミ同期 内定　速報　ゼミ同期 内定　速報　ゼミ同期 内定　速報　ゼミ同期 内定　</span></div>
   </div>
+
+  <!-- 準備カード(選考の前) -->
+  <div class="ready" id="ready" hidden>
+    <div class="rd">
+      <p class="rd-k" id="rd-k"></p>
+      <div class="rd-head"><div class="rd-face" id="rd-face"></div><div><p class="rd-t" id="rd-t"></p><p class="rd-sub" id="rd-sub"></p></div></div>
+      <div class="rd-rules" id="rd-rules"></div>
+      <button type="button" class="btn red big" id="rd-go"></button>
+    </div>
+  </div>
+  <b class="rd-count" id="rd-count" hidden></b>
 
   <!-- 撮影モード(#demo) -->
   <div class="demo" id="demo" hidden>

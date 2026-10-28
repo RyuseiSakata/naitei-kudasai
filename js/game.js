@@ -44,6 +44,7 @@
   function show(id, intro = id === 's-title') {
     SCENES.forEach((s) => ($(s).hidden = s !== id));
     document.body.classList.toggle('intro', intro);
+    document.body.dataset.scene = id;
     const el = $(id); el.classList.remove('enter'); void el.offsetWidth; el.classList.add('enter');
     window.scrollTo(0, 0);
   }
@@ -636,7 +637,7 @@
     for (const p of S.plan) {
       if (p.done) continue;
       if (p.kind === 'web') {
-        const sc = await webTest();
+        const sc = await webTest(p.apps);
         p.apps.forEach((a) => { a.pending = { stage: 1, score: sc }; a.todo = null; });
       } else if (p.kind === 'iv') {
         const a = p.apps[0], stage = a.todo;
@@ -729,12 +730,12 @@
     const seen = new Set();
     return KV.shuffle(cats).map((c) => { let q; do { q = makeQ(c); } while (seen.has(q.q)); seen.add(q.q); return q; });
   }
-  function webTest() {
+  function webTest(apps = []) {
     return new Promise((done) => {
       const qs = webSet();
       let i = 0, ok = 0, lock = false;
       show('s-web');
-      fx.sfx('Webテスト<small>SPI・玉手箱 4問</small>', 'pass'); KV.sound.play('alarm');
+      $('w-no').textContent = ''; $('w-q').textContent = ''; $('w-ch').innerHTML = ''; $('w-bar').style.width = '100%';
       const next = () => {
         if (i >= qs.length) {
           fx.sfx(`${ok} / ${qs.length}問 正解`, ok >= 3 ? 'pass' : 'gloom');
@@ -755,7 +756,15 @@
           i++; setTimeout(next, 900);
         }
       };
-      setTimeout(next, 1200);
+      ready({
+        k: apps.length ? `${apps[0].co.name}${apps.length > 1 ? ` ほか${apps.length - 1}社` : ''} の選考` : '選考', t: 'Webテスト', key: 'web', count: true, go: 'テストを始める',
+        sub: 'SPI・玉手箱によく出る問題 4問',
+        rules: [
+          ['時間', '1問12秒(長い問題は16秒)。時間切れは不正解'],
+          ['問題', '計算(非言語)2問・言葉(言語)1問・どちらか1問'],
+          ['結果', '正解が多いほど、次の選考に進みやすい。同じ月の会社は、まとめて1回'],
+        ],
+      }).then(next);
     });
   }
   let tId = 0;
@@ -915,7 +924,15 @@
         };
       };
       // 面接官が「あらわれる」演出のあとで、面接が始まる
-      encounter(a, stage).then(() => {
+      encounter(a, stage).then(() => ready({
+        k: `${a.co.name} の${ST[stage].name}`, t: final ? '最終面接 ― ボス戦' : ST[stage].name, face: type, key: 'iv', go: '面接を始める',
+        sub: `${final ? '役員' : boss.name}(${boss.title})「${boss.line}」`,
+        rules: [
+          ['答える', '質問に、答えを選ぶ。面接官によって好きな答えがちがう(セリフがヒント)'],
+          ['話す', '答えたあと「もっと話す」か「切り上げる」。面接官のしぐさを見て決める'],
+          ['評価', '評価メーターを、右の線までのばすと合格に近づく。時間制限はない'],
+        ],
+      })).then(() => {
         say(boss.line);
         setLog(final ? 'ボス戦。合格ラインは 65' : `${boss.name}は こちらを じっと見ている……`);
         setTimeout(ask, 1600);
@@ -986,124 +1003,253 @@
   }
 
   // ===== グループディスカッション =====
-  //   NPCが話しているあいだに発言すると「かぶり」。話が切れた一瞬に「発言する」を押す
-  function gd(a) {
+  //   だれかが話し終わった「間」に、今の流れ(前提 → アイデア → まとめ)に合う発言を選ぶ。
+  //   話の途中で押すと「かぶり」。クラッシャーは話を戻し、だまっている人には話を振る。最後に面接官のメモが出る
+  async function gd(a) {
+    const type = a.co.boss;
+    const theme = KV.pick(KV.GD_THEME);
+    const npc = [KV.GD_NPC[1], ...KV.shuffle(KV.GD_NPC.filter((x) => !x.crash)).slice(0, 3)];
+    const seats = KV.shuffle(npc);
+    seats.splice(2, 0, { me: true, name: 'あなた' });
+    const meI = seats.findIndex((p) => p.me);
+    const quietI = seats.findIndex((p) => p.quiet);
+    show('s-gd');
+    $('gd-co').textContent = a.co.name;
+    $('gd-theme').textContent = theme.t;
+    $('gd-boss').innerHTML = KV.chara.face(type, 'normal');
+    $('gd-board').innerHTML = '';
+    $('gd-review').hidden = true;
+    $('gd-table').innerHTML = seats.map((p, i) => `<div class="gd-seat${p.me ? ' me' : ''}" data-i="${i}">
+      <span class="gd-face">${KV.chara.face(p.me ? meType() : p.sex === 'f' ? 'me-f' : 'me-m', 'normal')}</span>
+      <b class="gd-name">${esc(p.name)}</b></div>`).join('');
+    $('gd-act').innerHTML = KV.GD_PHASE.map((p) => `<button type="button" class="btn gd-move" data-m="${p.id}">${p.move}</button>`).join('');
+    $('gd-fix').hidden = true;
+    $('s-gd').dataset.state = 'wait';
+    setPhase(-1);
+    await ready({
+      k: `${a.co.name} の一次選考`, t: 'グループディスカッション', face: type, key: 'gd', count: true,
+      sub: `お題「${theme.t}」`,
+      rules: [
+        ['間', 'だれかが話し終わった「間」(緑に光る)に発言する。話の途中で押すと、かぶって減点'],
+        ['流れ', '議論は 前提 → アイデア → まとめ と進む。今の流れに合うボタンを押す'],
+        ['協調', 'クラッシャーが暴れたら「話を戻す」。だまっている人に話を振るのも評価される'],
+      ],
+      before: () => pickRole(),
+    });
     return new Promise((done) => {
-      const type = a.co.boss;
-      const npc = [KV.GD_NPC[1], ...KV.shuffle(KV.GD_NPC.filter((x) => !x.crash)).slice(0, 3)];
-      const seats = KV.shuffle(npc);
-      seats.splice(2, 0, { me: true, name: 'あなた' });
-      const theme = KV.pick(KV.GD_THEME);
-      let score = 50, said = 0, state = 'wait', saidThis = false, round = 0, role = null, crashes = 0, t = 0;
-      show('s-gd');
-      $('gd-co').textContent = a.co.name;
-      $('gd-theme').textContent = theme;
-      $('gd-boss').innerHTML = KV.chara.face(type, 'normal');
-      $('gd-table').innerHTML = seats.map((p, i) => `<div class="gd-seat${p.me ? ' me' : ''}" data-i="${i}">
-        <p class="gd-bub" id="gd-b${i}"></p>
-        <span class="gd-face">${KV.chara.face(p.me ? meType() : p.sex === 'f' ? 'me-f' : 'me-m', 'normal')}</span>
-        <b class="gd-name">${esc(p.name)}</b></div>`).join('');
+      let score = 50, round = 0, state = 'wait', saidThis = false, t = 0, crashes = 0;
+      const st = { said: 0, fit: 0, cut: 0, team: 0, ideas: 0, base: 0, sum: 0, passed: false };
+      const role = S.gdRole;
+      const phaseOf = (r) => KV.GD_PHASE[Math.min(2, Math.floor((r - 1) / 3))];
       const air = () => { $('gd-air').style.width = clamp(score, 0, 100) + '%'; $('gd-air').className = score >= 65 ? 'hi' : score <= 35 ? 'lo' : ''; };
       const log = (txt, cls = '') => { const l = $('gd-log'); l.textContent = txt; l.className = 'iv-log ' + cls; void l.offsetWidth; l.classList.add('pop'); };
-      const bub = (i, txt, cls = '') => {
-        seats.forEach((_, j) => { const b = $('gd-b' + j); if (j !== i && !b.classList.contains('keep')) { b.textContent = ''; b.className = 'gd-bub'; } });
-        const b = $('gd-b' + i); b.textContent = txt; b.className = 'gd-bub on ' + cls; void b.offsetWidth; b.classList.add('pop');
-        document.querySelectorAll('.gd-seat').forEach((x) => x.classList.toggle('talk', +x.dataset.i === i));
-      };
       const pts = (d) => {
-        const m = role ? role.mult : 1;
-        const v = Math.round(d * m);
+        const v = Math.round(d * (d > 0 ? role.mult : 1));
         score = clamp(score + v, 0, 100); air();
         const n = document.createElement('b'); n.className = 'iv-dmg ' + (v >= 0 ? 'up' : 'down'); n.textContent = (v >= 0 ? '+' : '−') + Math.abs(v);
-        $('gd-table').appendChild(n); setTimeout(() => n.remove(), 1400);
+        $('gd-room').appendChild(n); setTimeout(() => n.remove(), 1400);
       };
-      const setState = (st) => {
-        state = st;
-        $('s-gd').dataset.state = st;
-        $('gd-say').textContent = st === 'gap' ? '今だ！ 発言する' : '発言する';
+      // 話している人と、その言葉。bar は話し終わるまでの残り(ms)
+      const speak = (i, txt, cls = '', bar = 0) => {
+        const p = seats[i];
+        document.querySelectorAll('.gd-seat').forEach((x) => x.classList.toggle('talk', +x.dataset.i === i));
+        $('gd-who').textContent = p.name;
+        $('gd-say-t').textContent = txt;
+        const sp = $('gd-speech');
+        sp.className = 'gd-speech on ' + cls; void sp.offsetWidth; sp.classList.add('pop');
+        const b = $('gd-talkbar'); b.style.animation = 'none'; void b.offsetWidth;
+        b.style.animation = bar ? `gd-bar ${bar}ms linear forwards` : 'none';
       };
-      const meI = seats.findIndex((p) => p.me);
-      // 1ターン: だれかが話す → 一瞬の間(ここで発言)
+      const write = (txt, me) => {
+        const li = document.createElement('li');
+        li.className = me ? 'me' : ''; li.textContent = txt;
+        $('gd-board').appendChild(li);
+        while ($('gd-board').children.length > 6) $('gd-board').firstElementChild.remove();
+      };
+      const setState = (s, ms = 0) => {
+        state = s; $('s-gd').dataset.state = s;
+        if (s === 'gap') {
+          const sp = $('gd-speech'); sp.className = 'gd-speech on gap';
+          $('gd-who').textContent = '';
+          $('gd-say-t').textContent = '(間)';
+          const b = $('gd-talkbar'); b.style.animation = 'none'; void b.offsetWidth; b.style.animation = `gd-bar ${ms}ms linear forwards`;
+          document.querySelectorAll('.gd-seat').forEach((x) => x.classList.remove('talk'));
+        }
+      };
+      const special = (label, k) => { const f = $('gd-fix'); f.hidden = false; f.textContent = label; f.dataset.k = k; };
       const turn = () => {
         if (round >= KV.GD_ROUNDS) return finish();
         round++; saidThis = false;
+        const ph = phaseOf(round);
+        setPhase(KV.GD_PHASE.indexOf(ph));
         $('gd-time').style.width = (100 - (round / KV.GD_ROUNDS) * 100) + '%';
-        if (role && role.passive) pts(role.passive);
-        const crashNow = crashes < 2 && round >= 2 && Math.random() < 0.35;
-        const si = crashNow ? seats.findIndex((p) => p.crash) : KV.pick(seats.map((p, i) => i).filter((i) => !seats[i].me));
+        if (role.passive) pts(role.passive);
+        $('gd-fix').hidden = true;
+        const crashNow = crashes < 2 && round >= 3 && Math.random() < 0.3;
+        const si = crashNow ? seats.findIndex((p) => p.crash) : KV.pick(seats.map((p, i) => i).filter((i) => !seats[i].me && !seats[i].crash && i !== quietI));
         const sp = seats[si];
-        bub(si, KV.pick(sp.lines), crashNow ? 'crash' : '');
+        const talk = 1300 + Math.random() * 900;
+        // アイデアの時間は、ほかの人も案を出してボードに書く
+        let line = KV.pick(sp.lines);
+        if (!crashNow && ph.id === 'idea' && Math.random() < 0.6) { const idea = theme.npc[(round - 4) % 2]; line = `${idea}、とかどうですか？`; setTimeout(() => write(idea), talk * 0.6); }
+        speak(si, line, crashNow ? 'crash' : '', talk);
         setState('talk');
         if (crashNow) {
-          // クラッシャー: 「話を戻す」を押せば、議論を立て直せる
           crashes++;
-          $('gd-fix').hidden = false; $('gd-fix').textContent = '話を戻す！';
-          $('gd-fix').dataset.k = 'fix';
+          special('話を戻す！', 'crash');
           log('クラッシャーが 議論を こわしはじめた！', 'bad'); KV.sound.play('alarm');
           t = setTimeout(() => {
-            if (!$('gd-fix').hidden) { $('gd-fix').hidden = true; pts(-6); log('議論が 脱線した……', 'bad'); }
+            if (!$('gd-fix').hidden && $('gd-fix').dataset.k === 'crash') { $('gd-fix').hidden = true; pts(-6); log('議論が 脱線した……', 'bad'); }
             gap();
-          }, 1500);
+          }, 1700);
           return;
         }
-        // タイムキーパーは、後半に「残り時間」を伝えるチャンス
-        if (role && role.id === 'timer' && round === KV.GD_ROUNDS - 2) {
-          $('gd-fix').hidden = false; $('gd-fix').textContent = '「残り5分です！」'; $('gd-fix').dataset.k = 'time';
-          setTimeout(() => { $('gd-fix').hidden = true; }, 1300);
-        }
-        t = setTimeout(gap, 1300 + Math.random() * 900);
+        // だまっている人に、話を振るチャンス(アイデアの時間に1回)
+        if (quietI >= 0 && !st.passed && ph.id === 'idea') special(`${seats[quietI].name}さんに 話を振る`, 'quiet');
+        // タイムキーパーは、まとめの前に「残り時間」を伝えるチャンス
+        if (role.id === 'timer' && round === KV.GD_ROUNDS - 2) special('「残り5分です！」', 'time');
+        t = setTimeout(gap, talk);
       };
       const gap = () => {
-        setState('gap');
-        document.querySelectorAll('.gd-seat').forEach((x) => x.classList.remove('talk'));
+        const ms = Math.max(560, 1150 - round * 60);
+        setState('gap', ms);
         KV.sound.play('tick');
-        t = setTimeout(() => { setState('talk'); turn(); }, Math.max(480, 1050 - round * 70));
+        t = setTimeout(() => { if (state === 'gap') turn(); }, ms);
       };
       const finish = () => {
-        clearTimeout(t); setState('end'); $('gd-fix').hidden = true;
-        if (!said) { pts(-20); log('一言も 話せなかった……', 'bad'); setMental(-6); }
-        else if (said >= KV.GD_ROUNDS - 1) { pts(-6); log('しゃべりすぎて 浮いていた', 'bad'); }
-        else log(score >= 65 ? '議論を 引っぱった！' : score <= 35 ? '存在感が なかった……' : '可もなく、不可もなく', score >= 65 ? 'good' : score <= 35 ? 'bad' : '');
-        $('gd-boss').innerHTML = KV.chara.face(type, score >= 65 ? 'happy' : score <= 35 ? 'angry' : 'normal');
-        fx.sfx(score >= 65 ? '手応えアリ！' : score <= 35 ? '手応えナシ…' : '手応え、微妙', score >= 65 ? 'pass' : 'gloom');
-        setTimeout(() => done(score / 100), 2000);
+        clearTimeout(t); setState('end'); $('gd-fix').hidden = true; setPhase(3);
+        document.querySelectorAll('.gd-seat').forEach((x) => x.classList.remove('talk'));
+        if (!st.said) { pts(-20); setMental(-6); }
+        else if (st.said >= KV.GD_ROUNDS - 1) pts(-6);
+        // 面接官のメモ: 4つの観点
+        const mark = (v) => ['×', '△', '○', '◎'][v];
+        const rows = [
+          ['発言のタイミング', st.cut === 0 ? 3 : st.cut === 1 ? 2 : st.cut === 2 ? 1 : 0, st.cut ? `かぶり ${st.cut}回` : 'かぶりなし'],
+          ['流れを読む', !st.said ? 0 : st.fit / st.said >= 0.8 ? 3 : st.fit / st.said >= 0.5 ? 2 : 1, `${st.fit} / ${st.said}回 流れに合った`],
+          ['協調性', st.team >= 2 ? 3 : st.team === 1 ? 2 : 1, st.team ? `話を戻す・振る ${st.team}回` : '人を助けなかった'],
+          ['存在感', !st.said ? 0 : st.said >= KV.GD_ROUNDS - 1 ? 1 : st.said >= 3 ? 3 : st.said === 2 ? 2 : 1, !st.said ? '一言も話さなかった' : st.said >= KV.GD_ROUNDS - 1 ? 'しゃべりすぎ' : `発言 ${st.said}回`],
+        ];
+        const good = score >= 65, bad = score <= 35;
+        $('gd-review').innerHTML = `<div class="gd-rv"><p class="gd-rv-h">面接官のメモ</p>
+          <ul>${rows.map(([n, v, s], i) => `<li style="--d:${0.15 + i * 0.25}s"><span>${n}<small>${s}</small></span><b class="m${v}">${mark(v)}</b></li>`).join('')}</ul>
+          <p class="gd-rv-v ${good ? 'good' : bad ? 'bad' : ''}">${good ? '議論を 引っぱった！' : bad ? '存在感が なかった……' : '可もなく、不可もなく'}</p></div>`;
+        $('gd-review').hidden = false;
+        KV.sound.play('drum');
+        $('gd-boss').innerHTML = KV.chara.face(type, good ? 'happy' : bad ? 'angry' : 'normal');
+        setTimeout(() => fx.sfx(good ? '手応えアリ！' : bad ? '手応えナシ…' : '手応え、微妙', good ? 'pass' : 'gloom'), 1300);
+        setTimeout(() => done(score / 100), 3600);
       };
-      $('gd-say').onclick = () => {
+      $('gd-act').onclick = (e) => {
+        const b = e.target.closest('[data-m]'); if (!b) return;
         if (state === 'wait' || state === 'end' || state === 'mine') return;
-        if (state === 'gap' && !saidThis) {
-          saidThis = true; said++;
-          bub(meI, KV.pick(KV.GD_ME), 'me');
-          pts(9 + Math.min(said, 3)); KV.sound.play(said >= 3 ? 'crit' : 'hit');
-          log('いい タイミングで 発言した！', 'good');
-          clearTimeout(t); setState('mine');
-          t = setTimeout(turn, 1000);
-        } else if (state === 'gap') {
-          pts(-4); KV.sound.play('deny'); log('しゃべりすぎ……', 'bad');
-        } else {
+        if (state === 'talk') {
           // 人が話している途中で、かぶせた
-          bub(meI, 'あの、それって……(かぶった)', 'me bad');
+          st.cut++;
+          speak(meI, 'あの、それって……(かぶった)', 'me bad');
           pts(-8); KV.sound.play('counter'); fx.shake(); log('発言が かぶった！', 'bad');
+          return;
         }
+        if (saidThis) return;
+        saidThis = true; st.said++;
+        const m = b.dataset.m, ph = phaseOf(round), fit = m === ph.id;
+        let line, memo;
+        if (m === 'base') { line = theme.base[0]; memo = st.base++ ? '' : theme.base[1]; }
+        else if (m === 'idea') { const x = theme.ideas[st.ideas % theme.ideas.length]; st.ideas++; [line, memo] = x; }
+        else { line = theme.sum[0]; memo = st.sum++ ? '' : theme.sum[1]; }
+        speak(meI, line, 'me');
+        if (memo) setTimeout(() => write(memo, true), 400);
+        if (fit) {
+          st.fit++;
+          pts(10 + Math.min(st.fit, 3) + (m === 'sum' && role.id === 'chair' ? 6 : 0));
+          KV.sound.play(st.fit >= 3 ? 'crit' : 'hit');
+          log(m === 'sum' && role.id === 'chair' ? '司会として まとめた！' : 'いい タイミングで、流れに合った発言！', 'good');
+        } else {
+          pts(2); KV.sound.play('tick');
+          log(`面接官「${KV.pick(KV.GD_OFF[m])}」`, 'bad');
+        }
+        clearTimeout(t); setState('mine');
+        document.querySelectorAll('.gd-seat').forEach((x) => x.classList.toggle('talk', +x.dataset.i === meI));
+        t = setTimeout(turn, 1300);
       };
       $('gd-fix').onclick = () => {
-        if ($('gd-fix').hidden) return;
-        $('gd-fix').hidden = true;
-        if ($('gd-fix').dataset.k === 'fix') { pts(14); bub(meI, 'いったん、テーマに戻しませんか？', 'me'); log('議論を 立て直した！', 'good'); KV.sound.play('crit'); fx.flash(); }
-        else { pts(10); bub(meI, '残り5分です！ 結論に向かいましょう', 'me'); log('時間管理で 評価アップ！', 'good'); KV.sound.play('hit'); }
+        const f = $('gd-fix'); if (f.hidden) return;
+        f.hidden = true; st.team++;
+        if (f.dataset.k === 'crash') {
+          pts(14); speak(meI, 'いったん、テーマに戻しませんか？', 'me'); log('議論を 立て直した！', 'good'); KV.sound.play('crit'); fx.flash();
+        } else if (f.dataset.k === 'quiet') {
+          st.passed = true;
+          const q = seats[quietI];
+          pts(10); speak(meI, `${q.name}さんは、どう思いますか？`, 'me'); log('だまっていた人に 話を振った！', 'good'); KV.sound.play('hit');
+          clearTimeout(t); setState('mine');
+          const idea = theme.npc[theme.npc.length - 1];
+          t = setTimeout(() => { speak(quietI, `……あの、${idea}、とか……`, '', 1200); write(idea); t = setTimeout(turn, 1500); }, 1300);
+        } else {
+          pts(10); speak(meI, '残り5分です！ 結論に向かいましょう', 'me'); log('時間管理で 評価アップ！', 'good'); KV.sound.play('hit');
+        }
       };
-      // 役割を選んでから始める
-      $('gd-role').hidden = false; $('gd-fix').hidden = true; air(); log('役割を 決めてください');
+      air();
+      if (role.id === 'chair') { pts(5); speak(meI, 'では、私が司会をします', 'me'); }
+      log('「間」に、流れに合うボタンを押す！');
+      KV.sound.play('vs');
+      t = setTimeout(turn, 1200);
+    });
+  }
+  // 議論の流れ(前提 → アイデア → まとめ)。i = 3 で終わり
+  function setPhase(i) {
+    $('gd-phase').innerHTML = KV.GD_PHASE.map((p, k) => `<li class="${k === i ? 'now' : k < i ? 'done' : ''}">${p.name}</li>`).join('');
+    document.querySelectorAll('.gd-move').forEach((b) => b.classList.toggle('fit', i >= 0 && i < 3 && b.dataset.m === KV.GD_PHASE[i].id));
+  }
+  // 役割を決める(準備カードの「始める」のあと)
+  function pickRole() {
+    return new Promise((res) => {
+      $('gd-role').hidden = false;
       $('gd-role').innerHTML = `<p class="gd-role-h">役割を決めよう</p>` + KV.GD_ROLE.map((r, i) => `<button type="button" class="ans" data-r="${i}">${r.name}<small>${r.note}</small></button>`).join('');
       $('gd-role').onclick = (e) => {
         const b = e.target.closest('[data-r]'); if (!b) return;
-        role = KV.GD_ROLE[+b.dataset.r];
+        S.gdRole = KV.GD_ROLE[+b.dataset.r];
         $('gd-role').hidden = true; $('gd-role').onclick = null;
-        if (role.id === 'chair') { pts(5); bub(meI, 'では、私が司会をします', 'me'); }
-        log('話が切れた一瞬に「発言する」！ 人の話にかぶせると減点');
-        KV.sound.play('vs');
-        t = setTimeout(turn, 1400);
+        KV.sound.play('ok');
+        res();
       };
     });
+  }
+
+  // ===== 準備カード: 選考の前に、何をするか・遊び方を見せる。時間制限があるものは 3・2・1 =====
+  //   遊び方は、その種類の初回だけ開いて見せる(2回目からは閉じておく)
+  function ready(o) {
+    return new Promise((res) => {
+      S.seen = S.seen || {};
+      const first = !S.seen[o.key];
+      S.seen[o.key] = true;
+      $('rd-k').textContent = o.k;
+      $('rd-t').textContent = o.t;
+      $('rd-sub').textContent = o.sub || '';
+      $('rd-face').innerHTML = o.face ? KV.chara.face(o.face, 'normal') : '';
+      $('rd-face').hidden = !o.face;
+      $('rd-rules').innerHTML = `<details${first ? ' open' : ''}><summary>遊び方</summary><ul>${o.rules.map(([h, t]) => `<li><b>${h}</b><span>${t}</span></li>`).join('')}</ul></details>`;
+      $('rd-go').textContent = o.go || '始める';
+      const el = $('ready');
+      el.className = 'ready'; el.hidden = false; void el.offsetWidth; el.classList.add('go');
+      KV.sound.play('card');
+      $('rd-go').onclick = async () => {
+        $('rd-go').onclick = null;
+        KV.sound.play('up');
+        el.hidden = true;
+        if (o.before) await o.before();
+        if (o.count) await countdown();
+        res();
+      };
+    });
+  }
+  async function countdown() {
+    const c = $('rd-count');
+    for (const n of ['3', '2', '1', 'スタート！']) {
+      c.textContent = n; c.hidden = false;
+      c.classList.remove('go'); void c.offsetWidth; c.classList.add('go');
+      KV.sound.play(n.length > 1 ? 'up' : 'tick');
+      await wait(n.length > 1 ? 650 : 600);
+    }
+    c.hidden = true;
   }
 
   // ===== 面接官があらわれた(敵の襲来) =====
@@ -1328,12 +1474,13 @@
       const q = (s) => document.querySelector(s);
       let el = null, gap = 900;
       if (!$('offer').hidden) { el = q('#od-act [data-o=ok]'); gap = 9999; }
+      else if (!$('ready').hidden) { if (!seen) { seen = 'ready'; next = now + 1600; return; } el = $('rd-go'); seen = ''; }
       else if (!$('s-gd').hidden) {
         const st = $('s-gd').dataset.state;
         if (!$('gd-role').hidden) el = q('#gd-role [data-r]');
-        else if (!$('gd-fix').hidden) el = $('gd-fix');
-        else if (st === 'gap') el = $('gd-say');
-        else if (st === 'talk' && Math.random() < 0.02) el = $('gd-say'); // たまに、かぶる
+        else if (!$('gd-fix').hidden && Math.random() < 0.5) el = $('gd-fix');
+        else if (st === 'gap') el = Math.random() < 0.8 ? q('.gd-move.fit') : KV.pick([...document.querySelectorAll('.gd-move')]);
+        else if (st === 'talk' && Math.random() < 0.02) el = q('.gd-move'); // たまに、かぶる
         gap = 500;
       } else if (!$('s-iv').hidden && $('enc').hidden) {
         const as = [...document.querySelectorAll('#iv-ch .ans:not([disabled])')];
@@ -1360,7 +1507,6 @@
       a.gk = KV.GAKU_TEXT['アルバイト'][2]; a.mori = 2;
       KV.NG_P[a.co.boss] = 1;
       show('s-month'); setStep('board'); renderTop();
-      await encounter(a, 3);
       await interview(a, 3);
       KV.NG_P[a.co.boss] = ng;
       demoDone();
