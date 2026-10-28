@@ -204,7 +204,7 @@
   // 全国の内定率と、ゼミの同期
   function renderNat() {
     const [rate, when] = KV.NAITEI_RATE[Math.min(S.month, 10)];
-    $('nat-when').textContent = `(${when}時点)`;
+    $('nat-when').textContent = `(${when}時点・早期選考を含む)`;
     $('nat-v').textContent = rate.toFixed(1) + '%';
     $('nat-bar').style.width = rate + '%';
     const mine = S.apps.filter((a) => a.state === 'naitei').length;
@@ -215,6 +215,11 @@
     S.line.forEach((m) => (m.fresh = false));
   }
   // 同期が内定をもらう時期は、全国の内定率から決める
+  // 本選考で、同期が内定を持っている割合(早期選考の分を除く)
+  function honP(m, sex) {
+    const b = grpRate(KV.HONSENKO_FROM, sex);
+    return Math.max(0, (grpRate(m, sex) - b) / (100 - b));
+  }
   function rivalsTick() {
     let n = 0;
     const add = (who, text) => S.line.push({ who, text, fresh: true, d: n++ * 0.5 });
@@ -222,11 +227,11 @@
     const failed = S.apps.filter((a) => a.state === 'out' || a.state === 'lost').map((a) => a.co);
     const mine = S.apps.some((a) => a.state === 'naitei');
     const news = [];
-    S.rivals.filter((r) => !r.co && r.u < Math.min(0.97, (grpRate(S.month, r.sex) / 100) * r.k)).forEach((r) => {
+    S.rivals.filter((r) => !r.co && r.u < Math.min(0.97, honP(Math.min(S.month, 10), r.sex) * r.k)).forEach((r) => {
       const pool = KV.COMPANIES.filter((c) => c.open[0] <= S.month && (r.k >= 1.1 ? c.size !== 's' : c.size !== 'xl'));
       const stab = failed.length > 0 && Math.random() < 0.45;
       r.co = stab ? KV.pick(failed) : KV.pick(pool); r.month = S.month;
-      const text = S.month === KV.FIRST_MONTH ? KV.pick(KV.TALK.early) : KV.pick(KV.TALK.offer).replace('{co}', r.co.name);
+      const text = KV.pick(KV.TALK.offer).replace('{co}', r.co.name);
       add(r.name, text);
       // 自分にまだ内定がないと、同期の報告が刺さる。落ちた会社なら、もっと刺さる
       const hurt = (mine ? 0 : 5) + (stab ? 5 : 0);
@@ -1468,7 +1473,7 @@
     const p = KV.pay(co), t = KV.TERMS[co.id];
     const size = KV.SCORE_SIZE[co.size];
     const terms = Math.round(clamp((p.hourly - 1200) / 800, 0, 1) * 15 + clamp((45 - t.quit) / 33, 0, 1) * 10);
-    const time = Math.max(0, 15 - (m - 3) * 2);
+    const time = Math.max(0, 15 - Math.max(0, m - 7) * 3);
     return { size, terms, time, sum: size + terms + time };
   }
   function scoreOf(co, m, n, mental, minus) {
@@ -1483,7 +1488,7 @@
     const prays = S.apps.filter((a) => a.state === 'out' && !a.silent).length;
     const silents = S.apps.filter((a) => a.silent).length;
     // 途中で就活を終えても、同期は10月まで就活を続ける
-    for (let m = S.month + 1; m <= 10; m++) S.rivals.filter((r) => !r.co && r.u < Math.min(0.97, (grpRate(m, r.sex) / 100) * r.k)).forEach((r) => { r.co = KV.pick(KV.COMPANIES.filter((c) => c.open[0] <= 9 && (r.k >= 1.1 ? c.size !== 's' : c.size !== 'xl'))); r.month = m; });
+    for (let m = S.month + 1; m <= 10; m++) S.rivals.filter((r) => !r.co && r.u < Math.min(0.97, honP(m, r.sex) * r.k)).forEach((r) => { r.co = KV.pick(KV.COMPANIES.filter((c) => c.open[0] <= 9 && (r.k >= 1.1 ? c.size !== 's' : c.size !== 'xl'))); r.month = m; });
     const busts = S.apps.filter((a) => a.busted != null).length;
     const losts = S.apps.filter((a) => a.state === 'lost').length;
     const when = (a) => a.month || Math.min(S.month, 10);
@@ -1491,7 +1496,7 @@
     const best = S.accepted || offers.slice().sort((x, y) => jobScore(y.co, when(y)).sum - jobScore(x.co, when(x)).sum)[0];
     const mine = scoreOf(best && best.co, best && when(best), offers.length, S.mental, busts * 3 + losts * 5);
     // 同期は内定1社。メンタルは、早く決まった人ほど高い
-    const board = [...S.rivals.map((r) => ({ name: r.name, co: r.co, month: r.month, s: scoreOf(r.co, r.month, r.co ? 1 : 0, r.co ? 90 - (r.month - 3) * 6 - r.u * 20 : 25 + r.u * 20, 0) })),
+    const board = [...S.rivals.map((r) => ({ name: r.name, co: r.co, month: r.month, s: scoreOf(r.co, r.month, r.co ? 1 : 0, r.co ? 95 - (r.month - 5) * 6 - r.u * 20 : 25 + r.u * 20, 0) })),
       { name: 'あなた', me: true, co: best && best.co, month: best && when(best), s: mine }]
       .sort((x, y) => y.s.total - x.s.total || (x.me ? 1 : y.me ? -1 : 0));
     const rank = board.findIndex((x) => x.me) + 1;
@@ -1522,7 +1527,7 @@
           <tr class="sum"><th>合計</th><td></td><td>${mine.total}<small>/100</small></td></tr>
         </tbody></table>
         <details class="res-rule"><summary>順位の決め方</summary>
-          <p>ゼミの全員を「就活スコア」(100点満点)で並べています。同点なら、あなたが下です。同期の内定は1社、メンタルは決まった時期から計算しています。</p>
+          <p>ゼミの全員を「就活スコア」(100点満点)で並べています。同点なら、あなたが下です。全員が3月1日の就活解禁から本選考を始めています。同期の内定は1社、メンタルは決まった時期から計算しています。</p>
           <dl>${KV.SCORE_RULES.map(([h, mx, t]) => `<dt>${h}<small>${mx}</small></dt><dd>${t}</dd>`).join('')}</dl>
           <p>評価: S 80点以上 / A 65点以上 / B 50点以上 / C 35点以上 / D 35点未満</p>
         </details></div>
