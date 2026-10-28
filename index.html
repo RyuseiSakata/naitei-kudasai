@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>内定ください</title>
-  <meta name="description" content="本物の求人倍率で就活する。3月から9月まで、エントリーして、Webテストを解いて、クセの強い面接官を攻略しろ。合否はメールを開けるまで分からない。">
+  <meta name="description" content="本物の求人倍率で就活する。3月から9月まで(粘れば翌年2月まで)、エントリーして、Webテストを解いて、クセの強い面接官を攻略しろ。合否はメールを開けるまで分からない。">
   <meta name="theme-color" content="#ffd84a">
   <!-- テストプレイ用の公開なので、検索結果には出さない -->
   <meta name="robots" content="noindex">
@@ -54,12 +54,12 @@
           <p class="t-kicker">倍率は、本物の統計。</p>
           <h1 class="logo"><span>就活シミュレーター</span><b>内定ください</b></h1>
           <div class="lineup" id="lineup" aria-hidden="true"></div>
-          <p class="lead">3月から9月まで。エントリーして、Webテストを解いて、クセの強い面接官を攻略しろ。<br>合否は、メールを開けるまで分からない。</p>
+          <p class="lead">3月から9月まで(粘れば翌年2月まで)。エントリーして、Webテストを解いて、クセの強い面接官を攻略しろ。<br>合否は、メールを開けるまで分からない。</p>
           <div class="t-start" id="t-start">
             <button type="button" class="btn red big" data-sex="m"><span class="t-face" data-t="me-m"></span>男子で就活する</button>
             <button type="button" class="btn red big" data-sex="f"><span class="t-face" data-t="me-f"></span>女子で就活する</button>
           </div>
-          <p class="fine">入力はこの端末の中だけで計算し、どこにも送りません。会社と人物は架空です。</p>
+          <p class="fine">入力はこの端末の中だけで計算し、どこにも送りません。会社と人物は架空です。<button type="button" class="log-open" id="log-open">更新履歴</button></p>
         </section>
 
         <!-- 月のはじめ: メール → エントリー → 今月の予定 -->
@@ -158,7 +158,7 @@
 
   <!-- メールを開ける -->
   <div class="mail" id="mail" hidden>
-    <div class="env" id="env"><div class="flap"></div><span>選考結果のご連絡</span><b id="env-from"></b><i>クリックして開封</i></div>
+    <div class="env" id="env"><div class="flap"></div><span id="env-sub">選考結果のご連絡</span><b id="env-from"></b><i>クリックして開封</i></div>
     <div class="letter" id="letter" hidden></div>
   </div>
 
@@ -169,17 +169,17 @@
       <div class="es-row"><span class="es-l">氏名</span><span class="es-hand" id="es-name"></span><span class="es-l">学部</span><span class="es-hand" id="es-fac"></span></div>
       <div class="es-q">
         <p class="es-l">志望動機</p>
-        <p class="es-hand es-ans" id="es-mot">（下から選んでください）</p>
+        <p class="es-hand es-ans" id="es-mot">(下から選んでください)</p>
         <div class="es-opts" id="es-mot-o"></div>
       </div>
       <div class="es-q">
         <p class="es-l">学生時代に力を入れたこと <small class="es-mori" id="es-mori"></small></p>
-        <p class="es-hand es-ans" id="es-gk">（下から選んでください）</p>
+        <p class="es-hand es-ans" id="es-gk">(下から選んでください)</p>
         <div class="es-opts" id="es-gk-o"></div>
       </div>
       <div class="es-q">
         <p class="es-l">自己PR</p>
-        <p class="es-hand es-ans" id="es-pr">（下から選んでください）</p>
+        <p class="es-hand es-ans" id="es-pr">(下から選んでください)</p>
         <div class="es-opts" id="es-pr-o"></div>
       </div>
       <p class="es-hint" id="es-hint"></p>
@@ -209,7 +209,7 @@
     <div class="od">
       <p class="od-h">内定承諾書</p>
       <p class="od-to" id="od-to"></p>
-      <p class="od-body">私は、貴社からの内定を承諾し、来年4月1日に入社することを誓約いたします。</p>
+      <p class="od-body">私は、貴社からの内定を承諾し、卒業後の4月1日に入社することを誓約いたします。</p>
       <div class="od-spec" id="od-spec"></div>
       <p class="od-sign"><i>氏名</i><span class="od-name" id="od-name"></span><span class="od-han" id="od-han"></span></p>
       <p class="od-warn" id="od-warn"></p>
@@ -231,6 +231,15 @@
     <div class="news-me" id="news-me"><b class="news-dmg" id="news-dmg"></b><span class="news-say" id="news-say"></span></div>
     <p class="news-sum" id="news-sum"></p>
     <div class="news-band bot"><span>速報　ゼミ同期 内定　速報　ゼミ同期 内定　速報　ゼミ同期 内定　速報　ゼミ同期 内定　</span></div>
+  </div>
+
+  <!-- 更新履歴 -->
+  <div class="ready" id="log" hidden>
+    <div class="rd">
+      <p class="rd-t">更新履歴</p>
+      <ul class="log-list" id="log-list"></ul>
+      <button type="button" class="btn" id="log-close">閉じる</button>
+    </div>
   </div>
 
   <!-- 準備カード(選考の前) -->
