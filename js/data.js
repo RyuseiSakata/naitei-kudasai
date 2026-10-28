@@ -43,15 +43,24 @@ KV.COMPANIES = [
   { id: 'hikari', gd: true, name: 'ヒカリ電機', size: 'xl', ind: 'make', boss: 'kenjitsu', open: [3, 4], salary: 262000 },
   { id: 'harenohi', gd: true, name: 'ハレノヒ広告', size: 'l', ind: 'serv', boss: 'kira', open: [3, 6], salary: 270000 },
   { id: 'taiju', gd: true, name: '大樹建設', size: 'l', ind: 'build', boss: 'taiiku', open: [3, 7], salary: 258000 },
-  { id: 'minato', name: 'ミナトシステムズ', size: 'm', ind: 'it', boss: 'yurui', open: [4, 8], salary: 245000 },
-  { id: 'maruhiro', name: 'マルヒロストア', size: 'm', ind: 'retail', boss: 'kenjitsu', open: [4, 9], salary: 238000 },
-  { id: 'tsubasa', gd: true, name: 'つばさ物流', size: 'm', ind: 'serv', boss: 'taiiku', open: [6, 9], salary: 236000 },
-  { id: 'kazeno', name: 'かぜのたより企画', size: 's', ind: 'serv', boss: 'kira', open: [6, 9], salary: 228000 },
-  { id: 'denkiya', name: 'まちのでんき屋', size: 's', ind: 'retail', boss: 'taiiku', open: [5, 9], salary: 225000 },
+  { id: 'minato', name: 'ミナトシステムズ', size: 'm', ind: 'it', boss: 'yurui', open: [4, 8], open2: [10, 11], salary: 245000 },
+  { id: 'maruhiro', name: 'マルヒロストア', size: 'm', ind: 'retail', boss: 'kenjitsu', open: [4, 9], open2: [10, 11], salary: 238000 },
+  { id: 'tsubasa', gd: true, name: 'つばさ物流', size: 'm', ind: 'serv', boss: 'taiiku', open: [6, 9], open2: [10, 11], salary: 236000 },
+  { id: 'kazeno', name: 'かぜのたより企画', size: 's', ind: 'serv', boss: 'kira', open: [6, 9], open2: [10, 11], salary: 228000 },
+  { id: 'denkiya', name: 'まちのでんき屋', size: 's', ind: 'retail', boss: 'taiiku', open: [5, 9], open2: [10, 11], salary: 225000 },
+  { id: 'sorano', gd: true, free: true, name: 'ソラノ商事', size: 'xl', ind: 'retail', boss: 'yurui', open: [99, 99], open2: [10, 11], salary: 310000 },
 ];
+// ===== スカウト(一発逆転) =====
+//   面接やGDで高い評価を取ると、次の月に大手からスカウトが届くことがある。書類とWebテストが免除(学歴フィルターもない)
+KV.SCOUT_SCORE = 0.7; // この評価(0〜1)以上で
+KV.SCOUT_P = 0.45;    // この確率で届く(ゲーム内の基準)
+KV.SCOUT_MAX = 2;     // 1シーズンに2通まで
 KV.MAX_ACTIVE = 4;
 KV.FIRST_MONTH = 3;
 KV.LAST_MONTH = 9; // 9月の選考まで。10月1日が内定式
+// 秋・冬採用: 10月の時点で選考中か、内定がなければ、2月まで続けられる(3月が卒業)
+KV.FALL_LAST = 14; // 14 = 翌年の2月
+//   open2: 秋・冬採用でエントリーできる月 / free: 学歴不問(学歴フィルターも説明会の満席もない)
 
 // ===== プロフィール(ワンタップ) =====
 //   数値の v は 0〜1 の評価(ゲーム内の基準)。性別と文系・理系は、内定の時期(本物の統計)と面接で聞かれることに効く

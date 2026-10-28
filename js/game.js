@@ -74,6 +74,11 @@
   // 文理男女別の内定率(%)。ゼミの同期は、自分と同じ文系・理系として扱う
   const grpKey = (sex = S.pf.sex) => (KV.RIKEI[S.pf.fac] ? 's' : 'b') + (sex === 'f' ? 'f' : 'm');
   const grpRate = (m, sex) => KV.NAITEI_GROUP[grpKey(sex)][Math.min(m, 10)];
+  // 月の名前(13 = 翌年の1月)。S.last は最後に選考を受けられる月(9月、延長すると翌年2月)
+  const mName = (m) => ((m - 1) % 12) + 1;
+  const lastM = () => S.last || KV.LAST_MONTH;
+  const ended = () => S.month > lastM();
+  const openNow = (co) => [co.open, co.open2].some((o) => o && o[0] <= S.month && S.month <= o[1]);
 
   // ===== 自己紹介面接: 性別を選んだら、すぐ面接官があらわれる。プロフィールは面接で答えながら決める =====
   document.querySelectorAll('.t-face').forEach((f) => (f.innerHTML = KV.chara.face(f.dataset.t, 'happy')));
@@ -119,14 +124,14 @@
     if (S.demo) demoDone(); else newSeason();
   }
   function newSeason() {
-    Object.assign(S, { month: KV.FIRST_MONTH, mental: 100, apps: [], line: [], lost: [], accepted: null, warned: 0, lastES: null, sick: 0, ng: 0, full: {}, trap: { gosha: 0, dress: 0, full: 0, rev: 0 } });
+    Object.assign(S, { month: KV.FIRST_MONTH, last: KV.LAST_MONTH, scouts: 0, scoutNext: null, mental: 100, apps: [], line: [], lost: [], accepted: null, warned: 0, lastES: null, sick: 0, ng: 0, full: {}, trap: { gosha: 0, dress: 0, full: 0, rev: 0 } });
     S.rivals = KV.RIVALS.map((r) => ({ ...r, u: Math.random(), co: null, month: 0 }));
     startMonth();
   }
 
   // ===== 画面上の状態(カレンダー・メンタル・持ち駒) =====
   function renderTop() {
-    $('cal-m').textContent = S.month > KV.LAST_MONTH ? 10 : S.month;
+    $('cal-m').textContent = mName(S.month);
     $('m-val').textContent = Math.round(S.mental);
     $('m-bar').style.width = S.mental + '%';
     $('m-bar').className = S.mental < 40 ? 'low' : '';
@@ -142,8 +147,8 @@
       }).join('');
       const tag = a.state === 'naitei' ? '<b class="k-naitei">内定</b>' : a.state === 'lost' ? '<b class="k-out">取り消し</b>' : a.state === 'out' ? `<b class="k-out">${a.silent ? '音信不通' : 'お祈り'}</b>` : `<b class="k-wait">${a.todo != null ? ST[a.todo].name : '結果待ち'}</b>`;
       // 内定には返事の期限がある。承諾すると就活は終わり
-      const act = a.state === 'naitei' && S.month <= KV.LAST_MONTH
-        ? `<span class="k-dl">${a.deadline === S.month ? '今月中に返事を' : `${a.deadline}月中に返事を`}</span><span class="k-act">
+      const act = a.state === 'naitei' && !ended()
+        ? `<span class="k-dl">${a.deadline === S.month ? '今月中に返事を' : `${mName(a.deadline)}月中に返事を`}</span><span class="k-act">
             <button type="button" class="btn red k-ok" data-act="ok" data-id="${a.co.id}">内定承諾書を見る</button>
             ${a.waited ? '' : `<button type="button" class="btn sm" data-act="wait" data-id="${a.co.id}">待ってもらう</button>`}</span>`
         : '';
@@ -174,7 +179,7 @@
     const mine = S.apps.some((a) => a.state === 'naitei');
     const news = [];
     S.rivals.filter((r) => !r.co && r.u < Math.min(0.97, (grpRate(S.month, r.sex) / 100) * r.k)).forEach((r) => {
-      const pool = KV.COMPANIES.filter((c) => (r.k >= 1.1 ? c.size !== 's' : c.size !== 'xl'));
+      const pool = KV.COMPANIES.filter((c) => c.open[0] <= S.month && (r.k >= 1.1 ? c.size !== 's' : c.size !== 'xl'));
       const stab = failed.length > 0 && Math.random() < 0.45;
       r.co = stab ? KV.pick(failed) : KV.pick(pool); r.month = S.month;
       const text = S.month === KV.FIRST_MONTH ? KV.pick(KV.TALK.early) : KV.pick(KV.TALK.offer).replace('{co}', r.co.name);
@@ -252,12 +257,12 @@
     return ok;
   }
   function openOffer(a) {
-    if (S.busy || S.month > KV.LAST_MONTH) return;
+    if (S.busy || ended()) return;
     const el = $('offer');
     const rest = S.apps.filter((x) => x !== a && (x.state === 'active' || x.state === 'naitei'));
     const done = S.rivals.filter((r) => r.co).length;
     $('od-to').textContent = `${a.co.name} 御中`;
-    $('od-spec').innerHTML = `<span><i>初任給</i><b>${KV.yen(a.co.salary)}</b></span><span><i>会社の規模</i><b>社員 ${KV.SIZE[a.co.size]}</b></span><span><i>返事の期限</i><b class="dl">${a.deadline === S.month ? '今月中' : `${a.deadline}月中`}</b></span>`;
+    $('od-spec').innerHTML = `<span><i>初任給</i><b>${KV.yen(a.co.salary)}</b></span><span><i>会社の規模</i><b>社員 ${KV.SIZE[a.co.size]}</b></span><span><i>返事の期限</i><b class="dl">${a.deadline === S.month ? '今月中' : `${mName(a.deadline)}月中`}</b></span>`;
     $('od-name').textContent = '';
     $('od-han').textContent = '';
     $('od-warn').innerHTML = (rest.length ? `承諾すると、ほかの持ち駒<b>${rest.length}社</b>は辞退になります。` : '承諾すると、就活は終わりです。')
@@ -330,8 +335,24 @@
     $('month-next').disabled = true;
     show('s-month');
     renderTop();
-    const last = S.month > KV.LAST_MONTH;
-    await monthFlip(last ? '10月' : `${S.month}月`, last ? '内定式の日。最後の結果が届く' : S.month === KV.FIRST_MONTH ? '就活解禁' : `持ち駒 ${S.apps.filter((a) => a.state === 'active').length}社`);
+    // 9月が終わったとき、選考中の会社があるか内定がなければ、続けるか決める
+    if (S.month === KV.LAST_MONTH + 1 && lastM() === KV.LAST_MONTH && !S.accepted && !S.demo) {
+      const act = S.apps.filter((a) => a.state === 'active').length, nai = S.apps.filter((a) => a.state === 'naitei').length;
+      if (act || !nai) {
+        const go = await ready({
+          k: '10月1日', t: '9月が終わった', key: 'fall', go: '秋・冬採用に進む', alt: '就活を終える(結果を見る)', head: 'いまの状況',
+          sub: act ? `まだ選考中の会社が${act}社ある。` : '内定は、まだない。',
+          rules: [
+            ['続ける', '翌年2月まで就活を続けられる。選考中の会社は、そのまま進む'],
+            ['秋採用', '秋・冬採用の会社にエントリーできる。学歴不問の大手も'],
+            ['同期', `ゼミの同期は${S.rivals.filter((r) => r.co).length}人が内定済み。内定式の写真が届くかも……`],
+          ],
+        });
+        if (go === 'go') S.last = KV.FALL_LAST;
+      }
+    }
+    const last = ended();
+    await monthFlip(`${mName(S.month)}月`, last ? (lastM() === KV.LAST_MONTH ? '内定式の日。最後の結果が届く' : '卒業式の日。最後の結果が届く') : S.month === KV.FIRST_MONTH ? '就活解禁' : S.month === KV.LAST_MONTH + 1 ? '秋・冬採用' : `持ち駒 ${S.apps.filter((a) => a.state === 'active').length}社`);
     // メンタルが0になると、その月は寝込んでエントリーできない(少し回復する)
     const sick = S.mental <= 0 && !last;
     if (sick) S.sick = S.month;
@@ -352,7 +373,7 @@
   }
   // 返事をしなかった内定は取り消し(10月は、9月にもらった内定までは有効)
   function expireOffers() {
-    const lim = S.month > KV.LAST_MONTH ? S.month - 1 : S.month;
+    const lim = ended() ? S.month - 1 : S.month;
     S.lost = S.apps.filter((a) => a.state === 'naitei' && a.deadline < lim);
     S.lost.forEach((a) => (a.state = 'lost'));
   }
@@ -375,7 +396,7 @@
       const k = st.id === 'iv1' || st.id === 'iv2' ? 1.7 * score : st.id === 'web' ? 0.2 + 1.4 * score : 0.6 + 0.8 * score;
       let pass = Math.random() < clamp(p1 * k, 0.02, 0.85);
       // 学歴フィルター(大企業の書類選考。強さはゲーム内の基準)
-      if (st.id === 'es' && a.co.size === 'xl' && S.pf.univ <= 0.42 && Math.random() < 0.6) { pass = false; a.filter = true; }
+      if (st.id === 'es' && a.co.size === 'xl' && !a.co.free && S.pf.univ <= 0.42 && Math.random() < 0.6) { pass = false; a.filter = true; }
       // 使い回したESに他社の名前が残っていたら、書類で必ず落ちて、お祈りメールで指摘される
       if (st.id === 'es' && a.copyMiss) { pass = false; a.filter = false; S.mails.push({ a, stage, kind: 'pray' }); a.pending = null; return; }
       a.pending = null;
@@ -386,6 +407,16 @@
     S.mails = KV.shuffle(S.mails);
     // 予兆: 封筒が金色に光る(通過なら高め、落ちても少し)
     S.mails.forEach((m) => (m.gold = Math.random() < (m.kind === 'pray' ? 0.08 : 0.5)));
+    // スカウト: まだ受けていない大手から。いちばん最後に、金色の封筒で届く
+    if (S.scoutNext) {
+      const pool = KV.COMPANIES.filter((co) => (co.size === 'xl' || co.size === 'l') && !S.apps.some((a) => a.co.id === co.id));
+      if (pool.length) {
+        const co = KV.pick(pool.filter((c) => c.size === 'xl').length ? pool.filter((c) => c.size === 'xl') : pool);
+        S.mails.push({ a: { co, state: 'active', passed: 2, todo: 2, pending: null, scout: true, busted: null }, stage: 2, kind: 'scout', gold: true, gd: S.scoutNext.gd });
+        S.scouts = (S.scouts || 0) + 1;
+      }
+      S.scoutNext = null;
+    }
   }
 
   function setStep(step) {
@@ -401,16 +432,16 @@
     renderNext();
   }
   function renderNext() {
-    const b = $('month-next'), last = S.month > KV.LAST_MONTH;
+    const b = $('month-next'), last = ended();
     let t = '', on = true;
     if (S.step === 'mail') { on = S.mails.every((m) => m.open); t = last ? '結果を見る' : 'エントリーへ'; }
     else if (S.step === 'board') t = '今月の予定へ';
-    else if (S.step === 'plan') t = S.plan.length && !S.planDone ? '選考を受ける' : S.month >= KV.LAST_MONTH ? '10月へ(最後の結果)' : `${S.month + 1}月へ`;
+    else if (S.step === 'plan') t = S.plan.length && !S.planDone ? '選考を受ける' : S.month >= lastM() ? `${mName(lastM() + 1)}月へ(最後の結果)` : `${mName(S.month + 1)}月へ`;
     b.textContent = t; b.disabled = !on;
   }
   $('month-next').addEventListener('click', async () => {
     if (S.busy) return;
-    if (S.step === 'mail') { if (S.month > KV.LAST_MONTH) result(); else setStep('board'); }
+    if (S.step === 'mail') { if (ended()) result(); else setStep('board'); }
     else if (S.step === 'board') setStep('plan');
     else if (S.step === 'plan') {
       if (S.plan.length && !S.planDone) { await runPlan(); return; }
@@ -431,14 +462,14 @@
   // ===== 受信箱(机の上の封筒) =====
   function renderDesk(fly) {
     const n = S.mails.length;
-    $('mail-h').textContent = n ? `${S.month > KV.LAST_MONTH ? 10 : S.month}月、メールが${n}通届いた` : 'メールは届かなかった';
+    $('mail-h').textContent = n ? `${mName(S.month)}月、メールが${n}通届いた` : 'メールは届かなかった';
     $('mail-note').hidden = !n;
     $('lost').hidden = !S.lost.length;
     $('lost').textContent = S.lost.length ? `${S.lost.map((a) => a.co.name).join('、')}の内定は、返事をしなかったので取り消された。` : '';
     $('desk').innerHTML = S.mails.map((m, i) => {
-      const res = m.open ? `<em class="st-${m.kind}">${m.kind === 'pray' ? '不採用' : m.kind === 'naitei' ? '内定' : '通過'}</em>` : '';
+      const res = m.open ? `<em class="st-${m.kind}">${{ pray: '不採用', naitei: '内定', scout: 'スカウト' }[m.kind] || '通過'}</em>` : '';
       return `<button type="button" class="tile${m.open ? ' open' : ''}${m.gold && !m.open ? ' gold' : ''}${fly ? ' fly' : ''}" data-i="${i}" style="--d:${i * 0.12}s">
-        <span class="t-from">${esc(m.a.co.name)}</span><span class="t-sub">${ST[m.stage].name}の結果</span>${res}</button>`;
+        <span class="t-from">${esc(m.a.co.name)}</span><span class="t-sub">${m.kind === 'scout' ? 'スカウトのご連絡' : `${ST[m.stage].name}の結果`}</span>${res}</button>`;
     }).join('');
     if (fly && n) S.mails.forEach((m, i) => setTimeout(() => KV.sound.play('mail'), i * 120));
     const done = S.mails.every((m) => m.open);
@@ -478,13 +509,14 @@
     await wait(520);
     $('env').hidden = true;
     const L = $('letter');
-    const stamp = { pray: '不採用', pass: '通過', naitei: '内定' }[m.kind];
+    const stamp = { pray: '不採用', pass: '通過', naitei: '内定', scout: 'スカウト' }[m.kind];
     let body;
     if (m.kind === 'pray') body = `このたびは${st.name}にご参加いただき、誠にありがとうございました。慎重に選考を重ねました結果、誠に残念ながら、今回はご期待に添えない結果となりました。<br>末筆ながら、今後のご活躍を心よりお祈り申し上げます。${m.a.busted === m.stage ? '<br><span class="lt-ps">追伸: 面接でのお話と、エントリーシートの内容に、いくつか食い違いがございました。</span>' : ''}${m.a.copyMiss && m.stage === 0 ? `<br><span class="lt-ps">追伸: ご提出のエントリーシートの宛名が「${esc(m.a.copyMiss)}」様になっておりました。</span>` : ''}`;
-    else if (m.kind === 'naitei') body = `このたびは最終面接にお越しいただき、ありがとうございました。厳正なる選考の結果、あなたを採用することに決定いたしました。<br>初任給: ${KV.yen(co.salary)}<br><span class="lt-ps">${S.month > KV.LAST_MONTH ? '本日の内定式でお待ちしております。' : '内定を承諾されるかどうか、今月中にお返事ください。'}</span>`;
+    else if (m.kind === 'naitei') body = `このたびは最終面接にお越しいただき、ありがとうございました。厳正なる選考の結果、あなたを採用することに決定いたしました。<br>初任給: ${KV.yen(co.salary)}<br><span class="lt-ps">${!ended() ? '内定を承諾されるかどうか、今月中にお返事ください。' : lastM() === KV.LAST_MONTH ? '本日の内定式でお待ちしております。' : '4月から、お待ちしております。'}</span>`;
+    else if (m.kind === 'scout') body = `突然のご連絡、失礼いたします。${m.gd ? '就活イベントでの、あなたのグループディスカッションを拝見しました。' : 'スカウトサイトのプロフィールと、選考でのご評判を拝見しました。'}<br>ぜひ一度、お話しさせてください。<b>書類選考とWebテストは免除</b>いたします。<br><span class="lt-ps">一次面接のご案内をお送りします。</span>`;
     else body = `厳正なる選考の結果、${st.name}を通過されました。次の選考のご案内をお送りします。`;
     L.className = 'letter ' + m.kind;
-    L.innerHTML = `<p class="lt-sub">${esc(m.kind === 'pray' ? '選考結果のご連絡' : st.pass)}</p><p class="lt-from">${esc(co.name)} 人事部</p><p class="lt-body">${body}</p><span class="stamp s-${m.kind}">${stamp}</span><p class="lt-close">クリックして閉じる</p>`;
+    L.innerHTML = `<p class="lt-sub">${esc(m.kind === 'pray' ? '選考結果のご連絡' : m.kind === 'scout' ? 'スカウトのご連絡' : st.pass)}</p><p class="lt-from">${esc(co.name)} 人事部</p><p class="lt-body">${body}</p><span class="stamp s-${m.kind}">${stamp}</span><p class="lt-close">クリックして閉じる</p>`;
     L.hidden = false;
     await wait(650);
     const a = m.a;
@@ -493,10 +525,15 @@
       fx.flash('dark'); fx.shake('quake'); fx.vibrate(80); KV.sound.play('buyout');
       fx.sfx((a.copyMiss && m.stage === 0) || a.busted === m.stage ? 'バレてた…' : 'ズーン…', 'gloom'); setMental(-15);
     } else if (m.kind === 'naitei') {
-      a.state = 'naitei'; a.passed = ST.length; a.deadline = Math.min(S.month, 10); a.month = Math.min(S.month, 10);
+      a.state = 'naitei'; a.passed = ST.length; a.deadline = S.month; a.month = S.month;
       S.line.push({ who: KV.pick(S.rivals).name, text: KV.pick(KV.TALK.you).replace('{n}', S.pf.sex === 'f' ? '花子' : '太郎'), fresh: true });
       fx.flash(); fx.shake('quake'); fx.vibrate([60, 40, 160]); KV.sound.play('win'); fx.confetti();
       fx.sfx('内定！！', 'naitei'); setMental(25);
+    } else if (m.kind === 'scout') {
+      // 持ち駒が上限でも、スカウトは受けられる
+      a.fresh = true; S.apps.push(a); renderTop();
+      fx.flash(); fx.shake('quake'); fx.vibrate([40, 30, 120]); KV.sound.play('win'); fx.confetti(60);
+      fx.sfx('スカウト！<small>書類とWebテスト免除</small>', 'naitei'); setMental(10);
     } else {
       a.passed = m.stage + 1; a.todo = m.stage + 1;
       fx.flash(); fx.shake(); KV.sound.play('reveal');
@@ -516,19 +553,19 @@
   function renderBoard() {
     const act = S.apps.filter((a) => a.state === 'active').length;
     if (S.sick === S.month) { $('board').innerHTML = '<p class="sick">心が折れて、今月は布団から出られなかった。エントリーはお休み。(メンタルが少し回復した)</p>'; return; }
-    const list = KV.COMPANIES.filter((co) => co.open[0] <= S.month && S.month <= co.open[1] && !S.apps.some((a) => a.co.id === co.id));
+    const list = KV.COMPANIES.filter((co) => openNow(co) && !S.apps.some((a) => a.co.id === co.id));
     $('board').innerHTML = list.length ? list.map((co) => {
       const r = R.size[co.size], b = KV.BOSS[co.boss];
       // 偏差値が低いと、大企業の説明会がなぜか満席(その月はエントリーできない)
       const fk = co.id + '-' + S.month;
-      if (S.full && S.full[fk] === undefined) { S.full[fk] = co.size === 'xl' && S.pf.univ <= 0.42 && Math.random() < KV.FULL_P; if (S.full[fk]) trap().full++; }
+      if (S.full && S.full[fk] === undefined) { S.full[fk] = co.size === 'xl' && !co.free && S.pf.univ <= 0.42 && Math.random() < KV.FULL_P; if (S.full[fk]) trap().full++; }
       const full = S.full && S.full[fk];
       const per = r < 1 ? `学生${(1 / r).toFixed(1)}人に求人1件` : `求人${r.toFixed(1)}件に学生1人`;
-      const closing = co.open[1] === S.month ? '<span class="closing">今月で締切</span>' : '';
+      const closing = [co.open, co.open2].some((o) => o && o[1] === S.month) ? '<span class="closing">今月で締切</span>' : '';
       return `<button type="button" class="co${full ? ' full' : ''}" data-id="${co.id}" ${act >= KV.MAX_ACTIVE || full ? 'disabled' : ''}>
         ${closing}<span class="co-head">
           <span class="co-name">${esc(co.name)}</span>
-          <span class="co-tags"><i>${KV.IND[co.ind]}</i><i>社員 ${KV.SIZE[co.size]}</i></span>
+          <span class="co-tags"><i>${KV.IND[co.ind]}</i><i>社員 ${KV.SIZE[co.size]}</i>${co.free ? '<i class="free">学歴不問</i>' : ''}</span>
           <span class="co-face">${KV.chara.face(co.boss)}</span>
         </span>
         <span class="co-spec">
@@ -644,6 +681,7 @@
         // 一次選考がグループディスカッションの会社もある
         const sc = ST[stage].id === 'iv1' && a.co.gd ? await gd(a) : await interview(a, stage);
         a.pending = { stage, score: sc }; a.todo = null;
+        if (sc >= KV.SCOUT_SCORE && !S.scoutNext && (S.scouts || 0) < KV.SCOUT_MAX && S.month <= lastM() - 2 && Math.random() < KV.SCOUT_P) S.scoutNext = { gd: ST[stage].id === 'iv1' && a.co.gd };
       }
       p.done = true;
     }
@@ -1263,18 +1301,20 @@
       $('rd-sub').textContent = o.sub || '';
       $('rd-face').innerHTML = o.face ? KV.chara.face(o.face, 'normal') : '';
       $('rd-face').hidden = !o.face;
-      $('rd-rules').innerHTML = `<details${first ? ' open' : ''}><summary>遊び方</summary><ul>${o.rules.map(([h, t]) => `<li><b>${h}</b><span>${t}</span></li>`).join('')}</ul></details>`;
+      $('rd-rules').innerHTML = `<details${first ? ' open' : ''}><summary>${o.head || '遊び方'}</summary><ul>${o.rules.map(([h, t]) => `<li><b>${h}</b><span>${t}</span></li>`).join('')}</ul></details>`;
       $('rd-go').textContent = o.go || '始める';
+      $('rd-alt').hidden = !o.alt; $('rd-alt').textContent = o.alt || '';
+      $('rd-alt').onclick = () => { $('rd-alt').onclick = null; $('rd-go').onclick = null; KV.sound.play('tick'); el.hidden = true; res('alt'); };
       const el = $('ready');
       el.className = 'ready'; el.hidden = false; void el.offsetWidth; el.classList.add('go');
       KV.sound.play('card');
       $('rd-go').onclick = async () => {
-        $('rd-go').onclick = null;
+        $('rd-go').onclick = null; $('rd-alt').onclick = null;
         KV.sound.play('up');
         el.hidden = true;
         if (o.before) await o.before();
         if (o.count) await countdown();
-        res();
+        res('go');
       };
     });
   }
@@ -1376,7 +1416,7 @@
     const prays = S.apps.filter((a) => a.state === 'out' && !a.silent).length;
     const silents = S.apps.filter((a) => a.silent).length;
     // 途中で就活を終えても、同期は10月まで就活を続ける
-    for (let m = S.month + 1; m <= 10; m++) S.rivals.filter((r) => !r.co && r.u < Math.min(0.97, (grpRate(m, r.sex) / 100) * r.k)).forEach((r) => { r.co = KV.pick(KV.COMPANIES.filter((c) => (r.k >= 1.1 ? c.size !== 's' : c.size !== 'xl'))); r.month = m; });
+    for (let m = S.month + 1; m <= 10; m++) S.rivals.filter((r) => !r.co && r.u < Math.min(0.97, (grpRate(m, r.sex) / 100) * r.k)).forEach((r) => { r.co = KV.pick(KV.COMPANIES.filter((c) => c.open[0] <= 9 && (r.k >= 1.1 ? c.size !== 's' : c.size !== 'xl'))); r.month = m; });
     const best = S.accepted || offers.slice().sort((x, y) => y.co.salary - x.co.salary)[0];
     // ゼミ7人の順位: 会社の規模が大きいほど上、同じなら早く決まったほど上。同点なら自分が下
     const TIER = { xl: 4, l: 3, m: 2, s: 1 };
@@ -1384,7 +1424,7 @@
     const board = [...S.rivals.map((r) => ({ name: r.name, co: r.co, p: pt(r.co, r.month) })), { name: 'あなた', me: true, co: best && best.co, p: pt(best && best.co, best && (best.month || Math.min(S.month, 10))) - 0.5 }]
       .sort((x, y) => y.p - x.p);
     const rank = board.findIndex((x) => x.me) + 1;
-    const title = !offers.length ? '就職浪人' : offers.some((a) => a.co.size === 'xl') ? '倍率の暴力を突破' : offers.length >= 2 ? '内定ホルダー' : '滑り込み内定';
+    const title = !offers.length ? '就職浪人' : offers.some((a) => a.co.size === 'xl') && S.pf.univ <= 0.42 ? '学歴フィルター突破' : offers.some((a) => a.co.size === 'xl') ? '倍率の暴力を突破' : offers.length >= 2 ? '内定ホルダー' : '滑り込み内定';
     const fact = !offers.length
       ? `大学生の就職率は${KV.SHUSHOKU}%。あなたは、残りの${(100 - KV.SHUSHOKU).toFixed(1)}%に入った。`
       : best.co.size === 'xl'
@@ -1394,7 +1434,7 @@
       const how = a.state === 'naitei' ? `<b class="r-naitei">${a === S.accepted ? '内定(承諾)' : '内定'}</b>` : a.state === 'lost' ? '<b class="r-pray">内定を保留しすぎて取り消し</b>' : a.busted != null && a.failAt === a.busted ? `<b class="r-pray">${ST[a.failAt].name}で盛ったのがバレた</b>` : a.silent ? `<b class="r-pray">${a.filter ? '書類で音信不通(学歴フィルター？)' : '書類で音信不通'}</b>` : a.state === 'out' ? `<b class="r-pray">${ST[a.failAt].name}でお祈り</b>` : '<b class="r-wait">選考中に終了</b>';
       return `<li><span>${esc(a.co.name)}</span>${how}</li>`;
     }).join('');
-    const month = Math.min(S.month, 10);
+    const month = mName(S.month);
     $('res-card').className = 'res-card panel ' + (offers.length ? 'win' : 'lose');
     $('res-card').innerHTML = `<span class="res-face">${KV.chara.face(meType(), offers.length ? 'happy' : 'cry')}</span>
       <p class="res-k">${month}月の結果</p>
@@ -1422,7 +1462,8 @@
     $('share-x').href = 'https://x.com/intent/post?' + q.toString();
     // シェア用の画像(演出が終わるころに作っておく)
     $('share-img').disabled = true; $('res-img').hidden = true;
-    const extras = [busts && `ガクチカを盛ってバレた: ${busts}回`, S.ng && `性別で変わるNG質問をされた: ${S.ng}回`, ...trapList().split('<br>').filter(Boolean).map((t) => t.replace(/(.*)/, ''))].filter(Boolean);
+    const scoutWin = offers.find((a) => a.scout);
+    const extras = [scoutWin && `スカウトから逆転内定: ${scoutWin.co.name}`, lastM() > KV.LAST_MONTH && `秋・冬採用まで粘った(${mName(S.month)}月まで)`, busts && `ガクチカを盛ってバレた: ${busts}回`, S.ng && `性別で変わるNG質問をされた: ${S.ng}回`, ...trapList().split('<br>').filter(Boolean).map((t) => t.replace(/(.*)/, ''))].filter(Boolean);
     const card = {
       title, win: offers.length > 0, rank, of: board.length,
       nums: [[offers.length, '内定'], [prays, 'お祈り'], [silents, '音信不通'], [Math.round(S.mental), 'メンタル']],
