@@ -860,6 +860,24 @@ body.intro .wrap { grid-template-columns: minmax(0, 1fr); }
 .od-spec i { font-style: normal; font-size: 0.72rem; font-weight: 800; color: var(--c-ink-2); }
 .od-spec b { font-size: 0.95rem; overflow-wrap: anywhere; }
 .od-spec b.dl { color: var(--c-red); }
+.od-spec small { font-size: 0.7rem; font-weight: 800; color: var(--c-red-deep); }
+/* 内定の条件と比較表 */
+.k-cond { grid-column: 1 / -1; font-size: 0.74rem; font-weight: 800; line-height: 1.5; }
+.co-terms { font-size: 0.8rem !important; }
+.cmp-open { width: 100%; margin-bottom: 8px; background: var(--c-gold); }
+.rd.cmp { width: min(760px, 100%); }
+.cmp-note { margin: 0; font-size: 0.8rem; font-weight: 800; color: var(--c-ink-2); }
+.cmp-wrap { overflow-x: auto; border: 2px solid var(--c-ink); border-radius: 6px; }
+.cmp-table { width: 100%; border-collapse: collapse; font-size: 0.86rem; }
+.cmp-table th, .cmp-table td { padding: 8px 10px; border-bottom: 2px dashed var(--c-ink); text-align: left; vertical-align: top; font-weight: 800; }
+.cmp-table thead th { background: var(--c-ink); color: var(--c-paper); white-space: nowrap; }
+.cmp-table tbody th { position: sticky; left: 0; background: var(--c-paper-2); white-space: nowrap; font-size: 0.78rem; }
+.cmp-table td { min-width: 9em; background: var(--c-paper); }
+.cmp-table small { display: block; font-size: 0.68rem; color: var(--c-ink-2); }
+.cmp-table td small { color: var(--c-red-deep); }
+.cmp-table td.best { background: color-mix(in oklch, var(--c-gold) 45%, var(--c-paper)); }
+.cmp-table td.best::before { content: '◎ '; color: var(--c-red); }
+.cmp-table tr.cmp-go td, .cmp-table tr.cmp-go th { border-bottom: 0; }
 .od-sign { position: relative; margin: 0; display: flex; align-items: center; gap: 12px; min-height: 64px; border-bottom: 2px solid var(--c-ink); }
 .od-sign i { font-style: normal; font-weight: 800; font-size: 0.85rem; }
 .od-name { font-family: Yomogi, var(--font-body); font-size: 1.6rem; color: var(--c-blue); }
@@ -892,3 +910,8 @@ body.intro .wrap { grid-template-columns: minmax(0, 1fr); }
 /* Webテスト: 見出しフォントにない漢字があるので、本文フォントで太く */
 .quiz-q, .choices .ch { font-family: var(--font-body); font-weight: 800; }
 .lu figcaption { word-break: auto-phrase; }
+@media (max-width: 640px) {
+  .cmp-table { font-size: 0.8rem; }
+  .cmp-table th, .cmp-table td { padding: 6px 8px; }
+  .cmp-table td { min-width: 8em; }
+}

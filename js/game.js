@@ -130,6 +130,47 @@
     startMonth();
   }
 
+  // ===== 働く条件 =====
+  const terms = (co) => KV.TERMS[co.id];
+  const man = (v) => `${(v / 1e4).toFixed(1)}万`;
+  function termLine(co) {
+    const t = terms(co);
+    return `休日${t.hol}日・残業 月${t.ot}時間・転勤${t.move[1] ? 'あり' : 'なし'}`;
+  }
+  // 内定どうしを並べる。行ごとに一番いい会社に◎
+  function openCmp() {
+    const list = S.apps.filter((a) => a.state === 'naitei');
+    if (list.length < 2) return;
+    const P = list.map((a) => KV.pay(a.co)), T = list.map((a) => terms(a.co));
+    const rows = [
+      ['初任給', list.map((a, i) => [KV.yen(a.co.salary) + (T[i].fixed ? `<small>固定残業代${T[i].fixed}時間分を含む</small>` : ''), a.co.salary])],
+      ['基本給', list.map((a, i) => [KV.yen(P[i].base), P[i].base])],
+      ['年間休日', T.map((t) => [`${t.hol}日`, t.hol])],
+      ['残業(月平均)', T.map((t) => [`${t.ot}時間`, -t.ot])],
+      ['転勤', T.map((t) => [t.move[0], -t.move[1]])],
+      ['3年以内の離職率', T.map((t) => [`${t.quit}%`, -t.quit])],
+      ['時給にすると<small>残業代込み</small>', P.map((p) => [KV.yen(p.hourly), p.hourly])],
+      ['会社の規模', list.map((a) => [`社員 ${KV.SIZE[a.co.size]}`, null])],
+      ['返事の期限', list.map((a) => [a.deadline === S.month ? '今月中' : `${mName(a.deadline)}月中`, null])],
+    ];
+    $('cmp-table').innerHTML = `<thead><tr><th></th>${list.map((a) => `<th scope="col">${esc(a.co.name)}</th>`).join('')}</tr></thead><tbody>`
+      + rows.map(([h, cells]) => {
+        const vs = cells.map((c) => c[1]).filter((v) => v != null), top = Math.max(...vs);
+        const tie = vs.every((v) => v === top);
+        return `<tr><th scope="row">${h}</th>${cells.map(([t, v]) => `<td class="${v != null && !tie && v === top ? 'best' : ''}">${t}</td>`).join('')}</tr>`;
+      }).join('')
+      + `<tr class="cmp-go"><th></th>${list.map((a) => `<td><button type="button" class="btn red sm" data-id="${a.co.id}">承諾書を見る</button></td>`).join('')}</tr></tbody>`;
+    $('cmp').hidden = false;
+    KV.sound.play('reveal');
+  }
+  $('cmp-table').addEventListener('click', (e) => {
+    const b = e.target.closest('[data-id]'); if (!b) return;
+    $('cmp').hidden = true;
+    openOffer(S.apps.find((x) => x.co.id === b.dataset.id));
+  });
+  $('cmp-close').addEventListener('click', () => ($('cmp').hidden = true));
+  $('cmp-open').addEventListener('click', () => { if (!S.busy) openCmp(); });
+
   // ===== 画面上の状態(カレンダー・メンタル・持ち駒) =====
   function renderTop() {
     $('cal-m').textContent = mName(S.month);
@@ -153,8 +194,10 @@
             <button type="button" class="btn red k-ok" data-act="ok" data-id="${a.co.id}">内定承諾書を見る</button>
             ${a.waited ? '' : `<button type="button" class="btn sm" data-act="wait" data-id="${a.co.id}">待ってもらう</button>`}</span>`
         : '';
-      return `<li class="k-${a.state}${a.fresh ? ' fresh' : ''}"><span class="k-name">${esc(a.co.name)}</span>${tag}<span class="pips">${pips}</span>${act}</li>`;
+      const cond = a.state === 'naitei' ? `<span class="k-cond">初任給${man(a.co.salary)}円${terms(a.co).fixed ? '(固定残業代込み)' : ''}・${termLine(a.co)}</span>` : '';
+      return `<li class="k-${a.state}${a.fresh ? ' fresh' : ''}"><span class="k-name">${esc(a.co.name)}</span>${tag}<span class="pips">${pips}</span>${cond}${act}</li>`;
     }).join('');
+    $('cmp-open').hidden = ended() || S.apps.filter((a) => a.state === 'naitei').length < 2;
     S.apps.forEach((a) => (a.fresh = false));
     renderNat();
   }
@@ -263,12 +306,17 @@
     const rest = S.apps.filter((x) => x !== a && (x.state === 'active' || x.state === 'naitei'));
     const done = S.rivals.filter((r) => r.co).length;
     $('od-to').textContent = `${a.co.name} 御中`;
-    $('od-spec').innerHTML = `<span><i>初任給</i><b>${KV.yen(a.co.salary)}</b></span><span><i>会社の規模</i><b>社員 ${KV.SIZE[a.co.size]}</b></span><span><i>返事の期限</i><b class="dl">${a.deadline === S.month ? '今月中' : `${mName(a.deadline)}月中`}</b></span>`;
+    const t = terms(a.co), p = KV.pay(a.co);
+    $('od-spec').innerHTML = `<span><i>初任給</i><b>${KV.yen(a.co.salary)}</b>${t.fixed ? `<small>固定残業代${t.fixed}時間分を含む(基本給 ${KV.yen(p.base)})</small>` : ''}</span>`
+      + `<span><i>年間休日</i><b>${t.hol}日</b></span><span><i>残業(月平均)</i><b>${t.ot}時間</b></span><span><i>転勤</i><b>${t.move[0]}</b></span>`
+      + `<span><i>3年以内の離職率</i><b>${t.quit}%</b></span><span><i>時給にすると</i><b>${KV.yen(p.hourly)}</b><small>残業代込み</small></span>`
+      + `<span><i>会社の規模</i><b>社員 ${KV.SIZE[a.co.size]}</b></span><span><i>返事の期限</i><b class="dl">${a.deadline === S.month ? '今月中' : `${mName(a.deadline)}月中`}</b></span>`;
     $('od-name').textContent = '';
     $('od-han').textContent = '';
     $('od-warn').innerHTML = (rest.length ? `承諾すると、ほかの持ち駒<b>${rest.length}社</b>は辞退になります。` : '承諾すると、就活は終わりです。')
       + `<br>ゼミの同期は<b>${done}人</b>が内定済み。`;
     $('od-act').innerHTML = `<button type="button" class="btn red big" data-o="ok">承諾して、就活を終える</button>
+      ${S.apps.some((x) => x !== a && x.state === 'naitei') ? '<button type="button" class="btn" data-o="cmp">ほかの内定と比べる</button>' : ''}
       <button type="button" class="btn" data-o="hold">保留する</button>
       ${a.waited ? '' : '<button type="button" class="btn" data-o="wait">返事を1か月待ってもらう</button>'}`;
     el.className = 'offer';
@@ -278,6 +326,7 @@
       const b = e.target.closest('[data-o]'); if (!b) return;
       const o = b.dataset.o;
       if (o === 'hold') { el.hidden = true; KV.sound.play('tick'); return; }
+      if (o === 'cmp') { el.hidden = true; openCmp(); return; }
       if (o === 'wait') { el.hidden = true; askWait(a); return; }
       // 承諾: 名前を書いて、ハンコを押して、画面いっぱいに「内定承諾」
       $('od-act').onclick = null; $('od-act').innerHTML = '';
@@ -574,6 +623,7 @@
           <span class="co-row"><i>初任給</i><b>${(co.salary / 1e4).toFixed(1)}<small>万円</small></b></span>
           <span class="co-row co-ratio${r < 1 ? ' hard' : ''}"><i>求人倍率</i><b>${r.toFixed(2)}<small>倍</small></b></span>
           <span class="co-per">${per}</span>
+          <span class="co-row"><i>働き方</i><b class="co-terms">${termLine(co)}</b></span>
           <span class="co-row"><i>面接官</i><b class="co-boss">${b.title}</b></span>
         </span>
         ${full ? '<span class="co-full">説明会 満席<small>(さっき見たら空いていたのに……)</small></span>' : '<span class="co-go">エントリーする</span>'}

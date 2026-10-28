@@ -36,6 +36,7 @@
     <div class="wrap">
       <aside class="side panel">
         <h3 class="side-h">持ち駒 <small id="koma-n"></small></h3>
+        <button type="button" class="btn cmp-open" id="cmp-open" hidden>内定の条件を比べる</button>
         <ul class="koma" id="koma"></ul>
         <p class="side-empty" id="koma-empty">まだエントリーしていません</p>
         <h3 class="side-h">全国の内定率 <small id="nat-when"></small></h3>
@@ -234,6 +235,16 @@
   </div>
 
   <!-- 更新履歴 -->
+  <!-- 内定どうしの比較 -->
+  <div class="ready" id="cmp" hidden>
+    <div class="rd cmp">
+      <p class="rd-t">内定を比べる</p>
+      <p class="cmp-note">◎は、その項目で一番いい会社。条件はゲーム内の目安です。</p>
+      <div class="cmp-wrap"><table class="cmp-table" id="cmp-table"></table></div>
+      <button type="button" class="btn" id="cmp-close">閉じる</button>
+    </div>
+  </div>
+
   <div class="ready" id="log" hidden>
     <div class="rd">
       <p class="rd-t">更新履歴</p>
