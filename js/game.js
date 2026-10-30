@@ -86,7 +86,7 @@
   $('t-start').addEventListener('click', (e) => {
     const b = e.target.closest('[data-sex]'); if (!b || S.busy) return;
     KV.sound.unlock(); KV.sound.play('up');
-    S.pf = { sex: b.dataset.sex, sexLabel: b.dataset.sex === 'f' ? '女子' : '男子' }; S.mental = 100;
+    S.pf = { sex: b.dataset.sex, sexLabel: b.dataset.sex === 'f' ? '女子' : '男子' }; S.mental = 100; S.ouch = null;
     selfIntro();
   });
   async function selfIntro() {
@@ -262,6 +262,7 @@
         $('news-t').textContent = `${n.r.name}、内定。`;
         $('news-co').textContent = n.r.co.name;
         $('news-stab').hidden = !n.stab;
+        if (n.stab) ouch(n.text, `ゼミの同期・${n.r.name}`, 7);
         $('news-me').innerHTML = KV.chara.face(meType(), n.stab ? 'cry' : 'shock')
           + `<b class="news-dmg">メンタル −${n.hurt}</b><span class="news-say">${esc(KV.pick(n.stab ? KV.TALK.stabbed : KV.TALK.hurt))}</span>`;
         // 最後の1枚で、ゼミの中での自分の位置を見せる
@@ -421,6 +422,7 @@
     if (!last && S.month >= 5 && !S.apps.some((a) => a.state === 'naitei') && Math.random() < KV.PARENT_P) {
       const [who, text, m] = KV.pick(KV.PARENT);
       toast(who, text, '', '家族');
+      if (m < 0) ouch(text, who, 2 - m);
       setTimeout(() => setMental(m), 1200);
     }
     if (sick) setTimeout(() => { fx.sfx('心が折れた……<small>今月は布団から出られない</small>', 'gloom'); setMental(30); }, hurt ? 2400 : 300);
@@ -591,6 +593,8 @@
     const a = m.a;
     if (m.kind === 'pray') {
       a.state = 'out'; a.failAt = m.stage;
+      if (a.copyMiss && m.stage === 0) ouch(`ご提出のエントリーシートの宛名が「${a.copyMiss}」様になっておりました。`, `${a.co.name} 人事部`, 10);
+      else if (m.stage === ST.length - 1) ouch('今後のご活躍を心よりお祈り申し上げます。', `${a.co.name} 人事部(最終面接のあと)`, 6);
       fx.flash('dark'); fx.shake('quake'); fx.vibrate(80); KV.sound.play('buyout');
       fx.sfx((a.copyMiss && m.stage === 0) || a.busted === m.stage ? 'バレてた…' : 'ズーン…', 'gloom'); setMental(-15);
     } else if (m.kind === 'naitei') {
@@ -904,6 +908,8 @@
     el.className = 'iv-face e-' + expr; void el.offsetWidth; el.classList.add('react');
   }
   function setMeter(v) { $('iv-meter').style.width = v + '%'; $('iv-meter').className = v >= 65 ? 'hi' : v <= 35 ? 'lo' : ''; }
+  // 「いちばん刺さった一言」: 重いものを残す(同じ重さなら新しいほう)
+  function ouch(text, who, w) { if (!S.ouch || w >= S.ouch.w) S.ouch = { text: text.replace(/「/g, "『").replace(/」/g, "』"), who, w }; }
   function say(t) { const q = $('iv-q'); q.textContent = t; q.classList.remove('pop'); void q.offsetWidth; q.classList.add('pop'); }
   function interview(a, stage) {
     return new Promise((done) => {
@@ -953,6 +959,7 @@
           const good = meter >= 65, bad = meter <= 35;
           setFace(type, good ? 'happy' : bad ? 'angry' : 'normal');
           say(good ? '今日はありがとう！ 結果は追って連絡します！' : bad ? '……お疲れさまでした。' : '結果は、追ってご連絡します。');
+          if (bad) ouch('……お疲れさまでした。', `${a.co.name}の${final ? '役員' : boss.name}`, final ? 5 : 3);
           setLog(good ? '面接官の心を つかんだ！' : bad ? '面接官は 興味を なくした……' : '勝負の行方は、結果待ち', good ? 'good' : bad ? 'bad' : '');
           $('iv-ch').innerHTML = '';
           fx.sfx(good ? '手応えアリ！' : bad ? '手応えナシ…' : '手応え、微妙', good ? 'pass' : 'gloom');
@@ -961,7 +968,7 @@
         const q = qs[i];
         say(q.q);
         if (q.ng) {
-          S.ng = (S.ng || 0) + 1; a.ng = true;
+          S.ng = (S.ng || 0) + 1; a.ng = true; ouch(q.q, `${a.co.name}の${final ? '役員' : boss.name}`, 9);
           const sx = $('iv-sfx'); sx.textContent = 'NG質問！？'; sx.className = 'iv-sfx ng'; void sx.offsetWidth; sx.classList.add('go');
           document.querySelector('.iv-stage').classList.add('ngq');
           setLog('※片方の性別にだけ聞く この質問は、男女雇用機会均等法に反する', 'bad');
@@ -1043,7 +1050,8 @@
               // 嘘バレ: その場で面接が終わる
               a.busted = stage; over = true;
               setFace(type, 'shock');
-              say(KV.pick(['……さっきの話と、ESの内容が違いますね？', '具体的な数字を、もう一度お願いできますか？ ……あれ？', 'その大会、去年はなかったはずですが。']));
+              const lie = KV.pick(['……さっきの話と、ESの内容が違いますね？', '具体的な数字を、もう一度お願いできますか？ ……あれ？', 'その大会、去年はなかったはずですが。']);
+              say(lie); ouch(lie, `${a.co.name}の${final ? '役員' : boss.name}`, 8);
               fx.flash('dark'); fx.shake('quake'); fx.vibrate([80, 40, 120]); KV.sound.play('fired');
               fx.sfx('嘘バレ！！', 'gloom');
               hitFx(-99); setLog('嘘が バレた！ 面接は 強制終了', 'bad');
@@ -1143,7 +1151,7 @@
         } else {
           // 話しすぎ: ためた盛り上がりを失い、反撃される
           const lost = pool; pool = 0;
-          say(KV.PUSH_FAIL[tell]);
+          say(KV.PUSH_FAIL[tell]); ouch(KV.PUSH_FAIL[tell], `${final ? "役員" : boss.name}(${boss.title})`, 2);
           meter = clamp(meter - 8, 0, 100); setM(meter);
           setFace(type, 'angry'); fx.shake('quake');
           hitFx(-22);
@@ -1524,6 +1532,14 @@
     const rank = board.findIndex((x) => x.me) + 1;
     const grade = KV.GRADE.find(([g]) => mine.total >= g)[1];
     const title = !offers.length ? '就職浪人' : offers.some((a) => a.co.size === 'xl') && S.pf.univ <= 0.42 ? '学歴フィルター突破' : offers.some((a) => a.co.size === 'xl') ? '倍率の暴力を突破' : offers.length >= 2 ? '内定ホルダー' : best.month >= 9 ? '滑り込み内定' : '内定獲得';
+    const tp = typeOf({
+      n: offers.length, prays, silents, busts, losts, ng: S.ng || 0, mental: S.mental, scout: offers.some((a) => a.scout),
+      fin: S.apps.filter((a) => a.state === 'out' && a.failAt === ST.length - 1).length,
+      web: S.apps.filter((a) => a.state === 'out' && a.failAt === 1).length, entries: S.apps.length,
+      lowU: S.pf.univ <= 0.42, co: best && best.co, quit: best ? terms(best.co).quit : 0, m: best ? when(best) : 0, rank,
+      gosha: (S.trap || {}).gosha || 0, copy: S.apps.filter((a) => a.copyMiss && a.state === 'out' && a.failAt === 0).length,
+    });
+    const hit = S.ouch;
     const fact = !offers.length
       ? `就職を希望した大学生の就職率は${KV.SHUSHOKU.toFixed(1)}%。あなたは、残りの${(100 - KV.SHUSHOKU).toFixed(1)}%に入った。`
       : best.co.size === 'xl'
@@ -1538,6 +1554,8 @@
     $('res-card').innerHTML = `<span class="res-face">${KV.chara.face(meType(), offers.length ? 'happy' : 'cry')}</span>
       <p class="res-k">就活の結果(${mLabel(S.month)}に終了)</p>
       <p class="res-title">${title}</p>
+      <div class="res-type"><small>あなたの就活タイプ</small><b>${tp[0]}</b><span>${tp[1]}</span></div>
+      ${hit ? `<blockquote class="res-ouch"><small>いちばん刺さった一言</small><p>「${esc(hit.text)}」</p><cite>― ${esc(hit.who)}</cite></blockquote>` : ''}
       <div class="res-nums"><span><b id="rn-o">0</b>内定</span><span><b id="rn-p">0</b>お祈り</span><span><b id="rn-s">0</b>音信不通</span><span><b>${Math.round(S.mental)}</b>メンタル</span></div>
       ${best ? `<p class="res-best">${esc(best.co.name)}<small>初任給 ${KV.yen(best.co.salary)} / 年収の目安 ${yearOf(best.co)}</small></p>` : ''}
       <ul class="res-list">${rows || '<li><span>エントリー0社</span></li>'}</ul>
@@ -1564,7 +1582,7 @@
     KV.sound.play('drum');
     setTimeout(() => { KV.sound.play('stampin'); fx.shake(rank <= 3 ? 'shake' : 'quake'); }, 2700);
     if (offers.length) { fx.flash(); KV.sound.play('win'); fx.confetti(90); fx.sfx(title, 'naitei'); } else { fx.flash('dark'); KV.sound.play('fired'); fx.sfx(title, 'gloom'); }
-    const text = `${S.pf.kindLabel}、${S.pf.facLabel}${S.pf.fac === 'etc' ? '' : '学部'}、偏差値${S.pf.univLabel}、ガクチカ「${S.pf.gakuLabel}」で就活したら「${title}」。ゼミ${board.length}人中${rank}位(就活スコア${mine.total}点・${grade})。内定${offers.length}社・お祈り${prays}通・音信不通${silents}社${busts ? `・嘘バレ${busts}回` : ''}${S.ng ? `・NG質問${S.ng}回` : ''}${best ? `。内定先は${best.co.name}(架空)` : ''}`;
+    const text = `${S.pf.kindLabel}、${S.pf.facLabel}${S.pf.fac === 'etc' ? '' : '学部'}、偏差値${S.pf.univLabel}、ガクチカ「${S.pf.gakuLabel}」で就活したら「${title}」、就活タイプは「${tp[0]}」。ゼミ${board.length}人中${rank}位(就活スコア${mine.total}点・${grade})。内定${offers.length}社・お祈り${prays}通・音信不通${silents}社${busts ? `・嘘バレ${busts}回` : ''}${S.ng ? `・NG質問${S.ng}回` : ''}${best ? `。内定先は${best.co.name}(架空)` : ''}${hit ? `。いちばん刺さった一言「${hit.text}」` : ''}`;
     const q = new URLSearchParams({ text, hashtags: '内定ください' });
     if (location.protocol.startsWith('http')) q.set('url', location.href.split('#')[0]);
     $('share-x').href = 'https://x.com/intent/post?' + q.toString();
@@ -1573,7 +1591,7 @@
     const scoutWin = offers.find((a) => a.scout);
     const extras = [scoutWin && `スカウトから逆転内定: ${scoutWin.co.name}`, lastM() > KV.LAST_MONTH && `秋・冬採用まで粘った(${mLabel(Math.min(S.month, lastM()))}まで)`, busts && `ガクチカを盛ってバレた: ${busts}回`, S.ng && `性別で変わるNG質問をされた: ${S.ng}回`, ...trapList().split('<br>').filter(Boolean).map((t) => t.replace(/\(.*\)$/, ''))].filter(Boolean);
     const card = {
-      title, win: offers.length > 0, rank, of: board.length, score: `就活スコア ${mine.total}点・評価${grade}`,
+      title, type: tp[0], typeD: tp[1], ouch: hit && hit.text, ouchWho: hit && hit.who, win: offers.length > 0, rank, of: board.length, score: `就活スコア ${mine.total}点・評価${grade}`,
       nums: [[offers.length, '内定'], [prays, 'お祈り'], [silents, '音信不通'], [Math.round(S.mental), 'メンタル']],
       best: best && `${best.co.name}(架空)`,
       extras, face: meType(), expr: offers.length ? 'happy' : 'cry',
@@ -1602,6 +1620,7 @@
     a.href = $('res-img-i').src; a.download = 'naitei-kudasai.png';
     document.body.appendChild(a); a.click(); a.remove();
   });
+  function typeOf(t) { return KV.TYPES.find(([, , ok]) => ok(t)); }
   function trapList() {
     const t = S.trap || {}, l = [];
     if (t.gosha) l.push(`ESに「御社」と書いた: ${t.gosha}回(書き言葉は「貴社」)`);
