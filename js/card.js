@@ -86,7 +86,10 @@
     ctx.save(); ctx.translate(W / 2 - 8, 318); ctx.rotate(-0.035);
     bigText(ctx, d.type, 0, 0, 118, d.win ? tok('--c-red') : tok('--c-paper'), W - 200);
     ctx.restore();
-    ctx.font = `800 34px ${BODY}`; ctx.fillStyle = tok('--c-ink');
+    // 説明が長いタイプは、切らずに文字を小さくして1行に収める
+    let ds = 34; ctx.font = `800 ${ds}px ${BODY}`;
+    while (ds > 24 && ctx.measureText(d.typeD).width > W - 220) ctx.font = `800 ${--ds}px ${BODY}`;
+    ctx.fillStyle = tok('--c-ink');
     for (const l of wrap(ctx, d.typeD, W - 220, 1)) ctx.fillText(l, W / 2 - 8, 384);
 
     // 顔と、結果のハンコ、順位
