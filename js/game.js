@@ -125,7 +125,7 @@
     if (S.demo) demoDone(); else newSeason();
   }
   function newSeason() {
-    Object.assign(S, { month: KV.FIRST_MONTH, last: KV.LAST_MONTH, scouts: 0, scoutNext: null, mental: 100, apps: [], line: [], lost: [], accepted: null, warned: 0, lastES: null, sick: 0, ng: 0, full: {}, trap: { gosha: 0, dress: 0, full: 0, rev: 0 } });
+    Object.assign(S, { month: KV.FIRST_MONTH, last: KV.LAST_MONTH, scouts: 0, scoutNext: null, mental: 100, apps: [], line: [], lost: [], accepted: null, warned: 0, lastES: null, sick: 0, ng: 0, full: {}, trap: { gosha: 0, dress: 0, full: 0, rev: 0 }, mob: [], massM: 0 });
     S.rivals = KV.RIVALS.map((r) => ({ ...r, u: Math.random(), co: null, month: 0 }));
     startMonth();
   }
@@ -183,7 +183,7 @@
     const mood = S.mental >= 60 ? 'normal' : S.mental >= 25 ? 'shock' : 'cry';
     if ($('me-mini').dataset.mood !== mood + meType()) { $('me-mini').dataset.mood = mood + meType(); $('me-mini').innerHTML = KV.chara.face(meType(), mood); }
     const act = S.apps.filter((a) => a.state === 'active').length;
-    $('koma-n').textContent = `${act} / ${KV.MAX_ACTIVE}`;
+    $('koma-n').textContent = act > KV.MAX_ACTIVE ? `${act}社` : `${act} / ${KV.MAX_ACTIVE}`;
     $('koma-empty').hidden = S.apps.length > 0;
     $('koma').innerHTML = S.apps.map((a) => {
       const pips = ST.map((st, i) => {
@@ -427,6 +427,7 @@
     }
     if (sick) setTimeout(() => { fx.sfx('心が折れた……<small>今月は布団から出られない</small>', 'gloom'); setMental(30); }, hurt ? 2400 : 300);
     judgeAll();
+    resolveMob();
     S.busy = false;
     if (S.mails.length || S.silent.length || S.lost.length) setStep('mail'); else if (last) result(); else setStep('board');
     if (S.lost.length) setTimeout(() => { fx.flash('dark'); fx.shake('quake'); KV.sound.play('buyout'); setMental(-12 * S.lost.length); }, 500);
@@ -473,6 +474,22 @@
       else S.mails.push({ a, stage, kind: 'pray' });
     }
   }
+  function resolveMob() {
+    const due = S.mob.filter((x) => x.state === 'wait' && x.m < S.month);
+    if (!due.length) return;
+    const p = KV.MOB_P[0] + (KV.MOB_P[1] - KV.MOB_P[0]) * clamp(profileScore(), 0, 1);
+    const pile = { kind: 'pile', a: { co: { name: '就活サイト経由' } }, stage: 0, pray: [], silent: [] };
+    due.forEach((x) => {
+      if (!x.copyMiss && Math.random() < p) {
+        x.state = 'pass';
+        const a = { co: x.co, state: 'active', passed: 0, pending: null, todo: null, fresh: true, busted: null };
+        S.apps.push(a); S.mails.push({ a, stage: 0, kind: 'pass' });
+      } else if (!x.copyMiss && Math.random() < KV.MOB_SILENT) { x.state = 'silent'; pile.silent.push(x); }
+      else { x.state = 'out'; x.text = x.copyMiss ? null : KV.pick(KV.MOB_PRAY); pile.pray.push(x); }
+    });
+    if (pile.pray.length || pile.silent.length) S.mails.unshift(pile);
+  }
+  const prayCount = () => S.apps.filter((a) => a.state === 'out' && !a.silent).length + S.mob.filter((x) => x.state === 'out').length;
   function finishJudge() {
     S.mails = KV.shuffle(S.mails);
     // 予兆: 封筒が金色に光る(通過なら高め、落ちても少し)
@@ -531,13 +548,15 @@
 
   // ===== 受信箱(机の上の封筒) =====
   function renderDesk(fly) {
-    const n = S.mails.length;
+    const n = S.mails.reduce((s, m) => s + (m.kind === 'pile' ? m.pray.length || 1 : 1), 0);
     $('mail-h').textContent = n ? `${mName(S.month)}月、メールが${n}通届いた` : 'メールは届かなかった';
     $('mail-note').hidden = !n;
     $('lost').hidden = !S.lost.length;
     $('lost').textContent = S.lost.length ? `${S.lost.map((a) => a.co.name).join('、')}の内定は、返事をしなかったので取り消された。` : '';
     $('desk').innerHTML = S.mails.map((m, i) => {
-      const res = m.open ? `<em class="st-${m.kind}">${{ pray: '不採用', naitei: '内定', scout: 'スカウト' }[m.kind] || '通過'}</em>` : '';
+      const res = m.open ? `<em class="st-${m.kind === 'pile' ? 'pray' : m.kind}">${{ pray: '不採用', naitei: '内定', scout: 'スカウト', pile: '全滅' }[m.kind] || '通過'}</em>` : '';
+      if (m.kind === 'pile') return `<button type="button" class="tile pile${m.open ? ' open' : ''}${fly ? ' fly' : ''}" data-i="${i}" style="--d:${i * 0.12}s">
+        <span class="t-from">お祈りメール ${m.pray.length}通</span><span class="t-sub">まとめてエントリーした会社から${m.silent.length ? `(ほか${m.silent.length}社は返事なし)` : ''}</span>${res}</button>`;
       return `<button type="button" class="tile${m.open ? ' open' : ''}${m.gold && !m.open ? ' gold' : ''}${fly ? ' fly' : ''}" data-i="${i}" style="--d:${i * 0.12}s">
         <span class="t-from">${esc(m.a.co.name)}</span><span class="t-sub">${m.kind === 'scout' ? 'スカウトのご連絡' : `${ST[m.stage].name}の結果`}</span>${res}</button>`;
     }).join('');
@@ -563,8 +582,8 @@
   function openMail(m) {
     cur = m;
     $('env').className = 'env' + (m.gold ? ' gold' : '');
-    $('env-from').textContent = m.a.co.name + ' 人事部';
-    $('env-sub').textContent = m.kind === 'scout' ? 'スカウトのご連絡' : '選考結果のご連絡';
+    $('env-from').textContent = m.kind === 'pile' ? `まとめてエントリーした${m.pray.length + m.silent.length}社` : m.a.co.name + ' 人事部';
+    $('env-sub').textContent = m.kind === 'scout' ? 'スカウトのご連絡' : m.kind === 'pile' ? `選考結果のご連絡 ×${m.pray.length}` : '選考結果のご連絡';
     $('env').hidden = false; $('letter').hidden = true;
     $('mail').hidden = false;
     KV.sound.play(m.gold ? 'alarm' : 'card');
@@ -580,6 +599,7 @@
     await wait(520);
     $('env').hidden = true;
     const L = $('letter');
+    if (m.kind === 'pile') { showPile(L, m); S.busy = false; return; }
     const stamp = { pray: '不採用', pass: '通過', naitei: '内定', scout: 'スカウト' }[m.kind];
     let body;
     if (m.kind === 'pray') body = `このたびは弊社の選考にご応募いただき、誠にありがとうございました。慎重に選考を重ねました結果、誠に残念ながら、今回はご期待に添えない結果となりました。<br>末筆ながら、今後のご活躍を心よりお祈り申し上げます。${m.a.busted === m.stage ? '<br><span class="lt-ps">追伸: 面接でのお話と、エントリーシートの内容に、いくつか食い違いがございました。</span>' : ''}${m.a.copyMiss && m.stage === 0 ? `<br><span class="lt-ps">追伸: ご提出のエントリーシートの宛名が「${esc(m.a.copyMiss)}」様になっておりました。</span>` : ''}`;
@@ -614,6 +634,24 @@
     }
     S.busy = false;
   });
+  // お祈りの束: 1通ずつハンコが押されて、最後にまとめてメンタルが削れる
+  function showPile(L, m) {
+    const n = m.pray.length, step = Math.min(0.12, 1.6 / Math.max(1, n));
+    L.className = 'letter pile';
+    L.innerHTML = `<p class="lt-sub">お祈りメール ${n}通</p><p class="lt-from">まとめてエントリーした会社から</p>
+      <ol class="pile-list">${m.pray.map((x, i) => `<li style="--d:${(0.2 + i * step).toFixed(2)}s"><b>${esc(x.co.name)} 人事部</b><span>${x.copyMiss ? `ご提出のエントリーシートの宛名が「${esc(x.copyMiss)}」様になっておりました。` : esc(x.text[0])}</span><i>不採用</i></li>`).join('')}</ol>
+      ${m.silent.length ? `<p class="pile-silent">ほかの${m.silent.length}社からは、返事すら来なかった。</p>` : ''}
+      <p class="pile-n" style="--d:${(0.4 + n * step).toFixed(2)}s">お祈り <b>+${n}</b><small>これまでの合計 ${prayCount()}通</small></p>
+      <p class="lt-close">クリックして閉じる</p>`;
+    L.hidden = false;
+    m.pray.forEach((x, i) => setTimeout(() => { KV.sound.play('stampin'); fx.vibrate(15); }, (0.2 + i * step) * 1000));
+    setTimeout(() => {
+      fx.flash('dark'); fx.shake('quake'); KV.sound.play('buyout');
+      fx.sfx(n >= KV.MOB_N - 1 ? '全滅……' : 'ズーン…', 'gloom');
+      setMental(-Math.min(20, 2 * n + m.silent.length));
+    }, (0.4 + n * step) * 1000);
+    m.pray.forEach((x) => x.copyMiss ? ouch(`ご提出のエントリーシートの宛名が「${x.copyMiss}」様になっておりました。`, `${x.co.name} 人事部`, 10) : ouch(x.text[0], `${x.co.name} 人事部`, x.text[1]));
+  }
   $('letter').addEventListener('click', () => {
     if (S.busy) return;
     const m = cur;
@@ -627,7 +665,13 @@
     const act = S.apps.filter((a) => a.state === 'active').length;
     if (S.sick === S.month) { $('board').innerHTML = '<p class="sick">心が折れて、今月は布団から出られなかった。エントリーはお休み。(メンタルが少し回復した)</p>'; return; }
     const list = KV.COMPANIES.filter((co) => openNow(co) && !S.apps.some((a) => a.co.id === co.id));
-    $('board').innerHTML = list.length ? list.map((co) => {
+    const used = S.massM === S.month;
+    const mass = `<button type="button" class="co mass" id="mass" ${used ? 'disabled' : ''}>
+        <span class="mass-k">就活サイト</span><span class="co-name">まとめてエントリー</span>
+        <span class="mass-d">ESを使い回して、名前も知らない会社${KV.MOB_N}社に一気に出す。持ち駒の枠は使わない。ほとんどは、お祈りで返ってくる。</span>
+        ${S.mob.length ? `<span class="mass-n">これまでに${S.mob.length}社に送信</span>` : ''}
+        <span class="co-go">${used ? '今月は送信ずみ' : `${KV.MOB_N}社に送信する`}</span></button>`;
+    $('board').innerHTML = mass + (list.length ? list.map((co) => {
       const r = R.size[co.size], b = KV.BOSS[co.boss];
       // 偏差値が低いと、大企業の説明会がなぜか満席(その月はエントリーできない)
       const fk = co.id + '-' + S.month;
@@ -651,10 +695,20 @@
         </span>
         ${full ? '<span class="co-full">説明会 満席<small>(さっき見たら空いていたのに……)</small></span>' : '<span class="co-go">エントリーする</span>'}
       </button>`;
-    }).join('') : '<p class="note">今月エントリーできる会社はありません。</p>';
+    }).join('') : '<p class="note">今月エントリーできる会社はありません。</p>');
+  }
+  function massEntry() {
+    S.massM = S.month;
+    const used = new Set([...KV.COMPANIES, ...S.mob.map((x) => x.co)].map((c) => c.name));
+    for (let i = 0; i < KV.MOB_N; i++) S.mob.push({ co: KV.mob(S.month, used), m: S.month, state: 'wait', copyMiss: S.lastES && Math.random() < KV.MOB_COPY ? S.lastES.co : false });
+    for (let i = 0; i < KV.MOB_N; i++) setTimeout(() => KV.sound.play('mail'), i * 70);
+    $('mass').classList.add('sent');
+    fx.sfx(`${KV.MOB_N}社にエントリー！<small>ESは全部コピペ</small>`, 'pass');
+    setTimeout(renderBoard, 420);
   }
   $('board').addEventListener('click', (e) => {
     const b = e.target.closest('.co'); if (!b || b.disabled) return;
+    if (b.id === 'mass') return massEntry();
     openES(KV.COMPANIES.find((c) => c.id === b.dataset.id));
   });
 
@@ -1515,8 +1569,8 @@
   
   function result() {
     const offers = S.apps.filter((a) => a.state === 'naitei');
-    const prays = S.apps.filter((a) => a.state === 'out' && !a.silent).length;
-    const silents = S.apps.filter((a) => a.silent).length;
+    const prays = prayCount();
+    const silents = S.apps.filter((a) => a.silent).length + S.mob.filter((x) => x.state === 'silent').length;
     // 途中で就活を終えても、同期は10月まで就活を続ける
     for (let m = S.month + 1; m <= 10; m++) S.rivals.filter((r) => !r.co && r.u < Math.min(0.97, honP(m, r.sex) * r.k)).forEach((r) => { r.co = KV.pick(KV.COMPANIES.filter((c) => c.open[0] <= 9 && (r.k >= 1.1 ? c.size !== 's' : c.size !== 'xl'))); r.month = m; });
     const busts = S.apps.filter((a) => a.busted != null).length;
@@ -1535,7 +1589,7 @@
     const tp = typeOf({
       n: offers.length, prays, silents, busts, losts, ng: S.ng || 0, mental: S.mental, scout: offers.some((a) => a.scout),
       fin: S.apps.filter((a) => a.state === 'out' && a.failAt === ST.length - 1).length,
-      web: S.apps.filter((a) => a.state === 'out' && a.failAt === 1).length, entries: S.apps.length,
+      web: S.apps.filter((a) => a.state === 'out' && a.failAt === 1).length, entries: S.apps.length + S.mob.length, mobN: S.mob.length, mobCo: !!(best && best.co.mob), ot: best ? terms(best.co).ot : 0,
       lowU: S.pf.univ <= 0.42, co: best && best.co, quit: best ? terms(best.co).quit : 0, m: best ? when(best) : 0, rank,
       gosha: (S.trap || {}).gosha || 0, copy: S.apps.filter((a) => a.copyMiss && a.state === 'out' && a.failAt === 0).length,
     });
@@ -1558,7 +1612,7 @@
       ${hit ? `<blockquote class="res-ouch"><small>いちばん刺さった一言</small><p>「${esc(hit.text)}」</p><cite>― ${esc(hit.who)}</cite></blockquote>` : ''}
       <div class="res-nums"><span><b id="rn-o">0</b>内定</span><span><b id="rn-p">0</b>お祈り</span><span><b id="rn-s">0</b>音信不通</span><span><b>${Math.round(S.mental)}</b>メンタル</span></div>
       ${best ? `<p class="res-best">${esc(best.co.name)}<small>初任給 ${KV.yen(best.co.salary)} / 年収の目安 ${yearOf(best.co)}</small></p>` : ''}
-      <ul class="res-list">${rows || '<li><span>エントリー0社</span></li>'}</ul>
+      <ul class="res-list">${rows || (S.mob.length ? '' : '<li><span>エントリー0社</span></li>')}${mobRow()}</ul>
       <div class="res-rank"><p>ゼミ${board.length}人中 <b class="rk">${rank}位</b><span class="res-score">就活スコア <b>${mine.total}</b>点 <i class="g-${grade}">${grade}</i></span></p>
         <ol>${board.map((x, i) => `<li class="${x.me ? 'me' : ''}" style="--d:${0.6 + (board.length - 1 - i) * 0.28}s"><span>${esc(x.name)}</span><b>${x.co ? `${esc(x.co.name)}<small>(${mLabel(x.month)}・社員${KV.SIZE[x.co.size]})</small>` : '内定なし'}</b><em>${x.s.total}点</em></li>`).join('')}</ol>
         <table class="res-break"><caption>あなたの点数の内訳</caption><tbody>
@@ -1620,6 +1674,11 @@
     a.href = $('res-img-i').src; a.download = 'naitei-kudasai.png';
     document.body.appendChild(a); a.click(); a.remove();
   });
+  function mobRow() {
+    if (!S.mob.length) return '';
+    const c = (s) => S.mob.filter((x) => x.state === s).length;
+    return `<li class="r-mob"><span>まとめてエントリー ${S.mob.length}社</span><b class="r-pray">${[c('out') && `お祈り${c('out')}`, c('silent') && `返事なし${c('silent')}`, c('pass') && `書類通過${c('pass')}`, c('wait') && `結果待ち${c('wait')}`].filter(Boolean).join(' / ')}</b></li>`;
+  }
   function typeOf(t) { return KV.TYPES.find(([, , ok]) => ok(t)); }
   function trapList() {
     const t = S.trap || {}, l = [];
