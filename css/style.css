@@ -47,6 +47,8 @@
 
 *, *::before, *::after { box-sizing: border-box; }
 html, body { margin: 0; overflow-x: clip; }
+/* 連打してもブラウザのダブルタップ拡大が起きないように(指2本での拡大はそのまま使える) */
+html { touch-action: manipulation; }
 body {
   min-height: 100dvh; color: var(--c-ink);
   background: radial-gradient(var(--c-dot) 1.6px, transparent 1.8px) 0 0 / 12px 12px, var(--c-yellow);
@@ -76,7 +78,7 @@ a.btn { color: inherit; }
   background: var(--c-paper); box-shadow: 4px 4px 0 var(--c-ink);
   transition: transform 0.08s, box-shadow 0.08s;
 }
-.btn:hover { transform: translate(-1px, -1px); box-shadow: 5px 5px 0 var(--c-ink); }
+@media (hover: hover) { .btn:hover { transform: translate(-1px, -1px); box-shadow: 5px 5px 0 var(--c-ink); } }
 .btn:active { transform: translate(3px, 3px); box-shadow: 1px 1px 0 var(--c-ink); }
 .btn.red { background: var(--c-red); color: var(--c-paper); }
 .btn.gold { background: var(--c-gold); }
@@ -179,7 +181,7 @@ body.intro .wrap { grid-template-columns: minmax(0, 1fr); }
 }
 .tile::before { content: ""; position: absolute; inset: 0 0 62% 0; background: var(--c-paper-2); clip-path: polygon(0 0, 100% 0, 50% 100%); border-bottom: 0; }
 .tile::after { content: ""; position: absolute; left: 50%; top: 38%; width: 18px; height: 18px; margin-left: -9px; margin-top: -9px; border-radius: 50%; background: var(--c-red); border: 2px solid var(--c-ink); }
-.tile:hover { transform: translateY(-4px) rotate(-1deg); }
+@media (hover: hover) { .tile:hover { transform: translateY(-4px) rotate(-1deg); } }
 .tile.fly { animation: fly-in 0.55s var(--ease-pop) var(--d, 0s) both; }
 .tile.gold { background: linear-gradient(110deg, var(--c-paper) 25%, var(--c-gold) 50%, var(--c-paper) 75%) 0 0 / 300% 100%; animation: glint 1.4s linear infinite; box-shadow: 4px 4px 0 var(--c-ink), 0 0 26px var(--c-gold); }
 .tile.gold.fly { animation: fly-in 0.55s var(--ease-pop) var(--d, 0s) both, glint 1.4s linear 0.6s infinite; }
@@ -235,7 +237,7 @@ body.intro .wrap { grid-template-columns: minmax(0, 1fr); }
   position: relative; display: grid; gap: 10px; align-content: start; text-align: left; cursor: pointer; padding: 14px;
   border: var(--line); border-radius: 6px; background: var(--c-paper); box-shadow: 4px 4px 0 var(--c-ink); transition: transform 0.12s;
 }
-.co:hover { transform: translateY(-4px) rotate(-0.6deg); }
+@media (hover: hover) { .co:hover { transform: translateY(-4px) rotate(-0.6deg); } }
 .co[disabled] { opacity: 0.45; cursor: default; transform: none; }
 .co.sent { animation: sent 0.42s ease-in both; }
 .co.mass { grid-column: 1 / -1; display: grid; gap: 4px; padding: 14px 16px; text-align: left; background: repeating-linear-gradient(-45deg, var(--c-paper) 0 14px, var(--c-paper-2) 14px 28px); border-style: dashed; }
@@ -297,7 +299,7 @@ body.intro .wrap { grid-template-columns: minmax(0, 1fr); }
   border: var(--line); background: var(--c-paper); border-radius: 8px; padding: 18px 8px; cursor: pointer; box-shadow: 4px 4px 0 var(--c-ink);
   font-family: var(--font-display); font-size: 1.3rem; transition: transform 0.08s;
 }
-.ch:hover { transform: translateY(-3px); }
+@media (hover: hover) { .ch:hover { transform: translateY(-3px); } }
 .ch.right { background: var(--c-green); animation: react 0.35s var(--ease-pop); }
 .ch.wrong { background: var(--c-red); color: var(--c-paper); animation: shake 0.3s steps(5); }
 .ch[disabled] { cursor: default; }
@@ -336,7 +338,7 @@ body.intro .wrap { grid-template-columns: minmax(0, 1fr); }
   text-align: left; padding: 14px 16px; border: var(--line); border-radius: 8px; background: var(--c-paper); box-shadow: 4px 4px 0 var(--c-ink); cursor: pointer;
   font-weight: 800; font-size: 1rem; animation: slide-in 0.35s var(--ease-pop) var(--d, 0s) both; transition: transform 0.1s;
 }
-.ans:hover { transform: translateX(6px); background: color-mix(in oklch, var(--c-cyan) 30%, var(--c-paper)); }
+@media (hover: hover) { .ans:hover { transform: translateX(6px); background: color-mix(in oklch, var(--c-cyan) 30%, var(--c-paper)); } }
 .ans.chosen { background: var(--c-cyan); transform: translateX(10px); }
 .ans.dim { opacity: 0.35; }
 /* 頭が真っ白: 連打すると文字がはっきりしてくる */
