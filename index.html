@@ -60,7 +60,7 @@
             <button type="button" class="btn red big" data-sex="m"><span class="t-face" data-t="me-m"></span>男子で就活する</button>
             <button type="button" class="btn red big" data-sex="f"><span class="t-face" data-t="me-f"></span>女子で就活する</button>
           </div>
-          <p class="fine">入力はこの端末の中だけで計算し、どこにも送りません。会社と人物は架空です。<button type="button" class="log-open" id="log-open">更新履歴</button></p>
+          <p class="fine">入力はこの端末の中だけで計算し、どこにも送りません(遊んだ人数と結果のタイプだけ、誰か分からない形で数えています)。会社と人物は架空です。<button type="button" class="log-open" id="log-open">更新履歴</button></p>
         </section>
 
         <!-- 月のはじめ: メール → エントリー → 今月の予定 -->
@@ -293,5 +293,7 @@
   <script src="js/chara.js"></script>
   <script src="js/card.js"></script>
   <script src="js/game.js"></script>
+  <!-- アクセス解析(GoatCounter)。Cookieは使わず、人数と結果のタイプだけ数える。手元のファイルで開いたときは動かさない -->
+  <script>if (location.protocol === "https:") { const g = document.createElement("script"); g.async = true; g.src = "https://gc.zgo.at/count.js"; g.dataset.goatcounter = "https://naitei-kudasai.goatcounter.com/count"; document.body.appendChild(g); }</script>
 </body>
 </html>

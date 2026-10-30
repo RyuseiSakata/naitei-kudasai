@@ -81,12 +81,15 @@
   const ended = () => S.month > lastM();
   const openNow = (co) => [co.open, co.open2].some((o) => o && o[0] <= S.month && S.month <= o[1]);
 
+  // アクセス解析: 遊び始めた人数・結果のタイプ・シェアの回数だけを数える(入力の中身は送らない)
+  const track = (path) => { try { if (!S.demo && window.goatcounter && window.goatcounter.count) window.goatcounter.count({ path, title: path, event: true }); } catch (e) { /* 解析が止まっても遊べるように */ } };
   // ===== 自己紹介面接: 性別を選んだら、すぐ面接官があらわれる。プロフィールは面接で答えながら決める =====
   document.querySelectorAll('.t-face').forEach((f) => (f.innerHTML = KV.chara.face(f.dataset.t, 'happy')));
   $('t-start').addEventListener('click', (e) => {
     const b = e.target.closest('[data-sex]'); if (!b || S.busy) return;
     KV.sound.unlock(); KV.sound.play('up');
     S.pf = { sex: b.dataset.sex, sexLabel: b.dataset.sex === 'f' ? '女子' : '男子' }; S.mental = 100; S.ouch = null;
+    track(`start-${b.dataset.sex}`);
     selfIntro();
   });
   async function selfIntro() {
@@ -1593,6 +1596,7 @@
       lowU: S.pf.univ <= 0.42, co: best && best.co, quit: best ? terms(best.co).quit : 0, m: best ? when(best) : 0, rank,
       gosha: (S.trap || {}).gosha || 0, copy: S.apps.filter((a) => a.copyMiss && a.state === 'out' && a.failAt === 0).length,
     });
+    track(`result/${offers.length ? 'naitei' : 'none'}/${tp[0]}`);
     const hit = S.ouch;
     const fact = !offers.length
       ? `就職を希望した大学生の就職率は${KV.SHUSHOKU.toFixed(1)}%。あなたは、残りの${(100 - KV.SHUSHOKU).toFixed(1)}%に入った。`
@@ -1666,6 +1670,7 @@
   // スマホは共有メニュー(インスタやXに直接)、PCは画像を保存
   $('share-img').addEventListener('click', async () => {
     if (!S.cardBlob) return;
+    track('share');
     const file = new File([S.cardBlob], 'naitei-kudasai.png', { type: 'image/png' });
     if (navigator.canShare && navigator.canShare({ files: [file] })) {
       try { await navigator.share({ files: [file], text: S.shareText + ' #内定ください' }); return; } catch (e) { if (e.name === 'AbortError') return; }
